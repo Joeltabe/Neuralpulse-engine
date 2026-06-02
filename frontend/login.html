@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — NeuralPulse Engine</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .auth-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .auth-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+        }
+        .auth-container h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .auth-container .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: var(--font);
+            transition: var(--transition);
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(77,108,245,0.15);
+        }
+        .form-group input::placeholder { color: var(--text-muted); }
+        .auth-container .btn { width: 100%; padding: 12px; font-size: 15px; margin-bottom: 12px; }
+        .auth-container .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .auth-link {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .auth-link a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .auth-link a:hover { text-decoration: underline; }
+        .auth-error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: var(--accent-red);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .auth-success {
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            color: var(--accent-green);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .token-bonus {
+            text-align: center;
+            padding: 12px;
+            background: rgba(77,108,245,0.1);
+            border: 1px dashed var(--accent-blue);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--accent-cyan);
+            margin-bottom: 24px;
+        }
+        .password-toggle {
+            position: relative;
+        }
+        .password-toggle .toggle-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 13px;
+        }
+        @media (max-width: 480px) {
+            .auth-container { padding: 24px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-container">
+            <div class="nav-brand" style="justify-content:center;margin-bottom:24px">
+                <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px">
+                    <span class="brand-icon">&#9900;</span>
+                    <span class="brand-text">NeuralPulse</span>
+                </a>
+            </div>
+
+            <h1 id="authTitle">Welcome Back</h1>
+            <p class="subtitle" id="authSubtitle">Sign in to your account to continue</p>
+
+            <div class="token-bonus">&#127881; New accounts get <strong>100 free tokens</strong> to start analyzing!</div>
+
+            <div id="authError" class="auth-error"></div>
+            <div id="authSuccess" class="auth-success"></div>
+
+            <form id="authForm" autocomplete="on">
+                <div class="form-group" id="nameGroup" style="display:none">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" placeholder="Your name" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="password-toggle">
+                        <input type="password" id="password" placeholder="At least 6 characters" required minlength="6" autocomplete="current-password">
+                        <button type="button" class="toggle-btn" onclick="togglePassword()">Show</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="authBtn">Sign In</button>
+            </form>
+
+            <p class="auth-link" id="authToggle">
+                <span id="toggleText">Don't have an account?</span>
+                <a href="#" id="toggleLink" onclick="toggleMode()">Sign Up</a>
+            </p>
+
+            <p class="auth-link" style="margin-top:8px">
+                <a href="/" style="color:var(--text-muted)">&larr; Back to Home</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let isRegister = new URLSearchParams(window.location.search).get('register') === '1';
+
+        function toggleMode() {
+            isRegister = !isRegister;
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('authTitle').textContent = isRegister ? 'Create Account' : 'Welcome Back';
+            document.getElementById('authSubtitle').textContent = isRegister
+                ? 'Sign up and get 100 free tokens to start'
+                : 'Sign in to your account to continue';
+            document.getElementById('authBtn').textContent = isRegister ? 'Create Account & Get Free Tokens' : 'Sign In';
+            document.getElementById('toggleText').textContent = isRegister
+                ? 'Already have an account?'
+                : "Don't have an account?";
+            document.getElementById('toggleLink').textContent = isRegister ? 'Sign In' : 'Sign Up';
+            document.getElementById('nameGroup').style.display = isRegister ? 'block' : 'none';
+            document.getElementById('authError').style.display = 'none';
+            document.getElementById('authSuccess').style.display = 'none';
+        }
+
+        function togglePassword() {
+            const pwd = document.getElementById('password');
+            const btn = event.target;
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                pwd.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+
+        updateUI();
+
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('authBtn');
+            btn.disabled = true;
+            btn.textContent = 'Please wait...';
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const name = document.getElementById('name').value.trim();
+
+            const errEl = document.getElementById('authError');
+            const sucEl = document.getElementById('authSuccess');
+            errEl.style.display = 'none';
+            sucEl.style.display = 'none';
+
+            try {
+                let endpoint, body;
+                if (isRegister) {
+                    if (!name) { throw new Error('Please enter your name'); }
+                    endpoint = '/auth/register';
+                    body = { email, password, name };
+                } else {
+                    endpoint = '/auth/login';
+                    body = { email, password };
+                }
+
+                const res = await fetch(window.location.origin + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json();
+
+                if (data.success && data.token) {
+                    localStorage.setItem('neuralpulse_token', data.token);
+                    localStorage.setItem('neuralpulse_user', JSON.stringify(data.user));
+                    sucEl.textContent = isRegister ? 'Account created! Redirecting...' : 'Signed in! Redirecting...';
+                    sucEl.style.display = 'block';
+                    setTimeout(() => {
+                        window.location.href = '/app/dashboard.html';
+                    }, 500);
+                } else {
+                    throw new Error(data.error || 'Authentication failed');
+                }
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = isRegister ? 'Create Account & Get Free Tokens' : 'Sign In';
+            }
+        });
+    </script>
+</body>
+</html>

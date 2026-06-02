@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralPulse Engine — AI-Powered Neuromarketing Optimization</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <style>
+        :root {
+            --landing-max: 1200px;
+        }
+        .landing-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 32px;
+            max-width: var(--landing-max);
+            margin: 0 auto;
+            width: 100%;
+        }
+        .landing-nav .brand-text { font-size: 22px; }
+        .landing-nav .nav-links { gap: 16px; }
+        .landing-nav .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .landing-nav .nav-links a:hover { color: var(--text-primary); }
+        .landing-nav .nav-cta { display: flex; gap: 8px; align-items: center; }
+        .landing-nav .btn { padding: 8px 20px; font-size: 13px; }
+        .landing-hero {
+            text-align: center;
+            padding: 100px 24px 60px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .landing-hero h1 {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #e8e9f3 0%, #00d4ff 40%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .landing-hero p {
+            font-size: clamp(16px, 2vw, 20px);
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 36px;
+            line-height: 1.6;
+        }
+        .landing-hero .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .landing-hero .btn { padding: 14px 32px; font-size: 16px; }
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            margin-top: 48px;
+            flex-wrap: wrap;
+        }
+        .hero-stat { text-align: center; }
+        .hero-stat .num { font-size: 32px; font-weight: 800; color: var(--accent-cyan); }
+        .hero-stat .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+        .features-section {
+            padding: 80px 24px;
+            max-width: var(--landing-max);
+            margin: 0 auto;
+        }
+        .features-section h2 {
+            text-align: center;
+            font-size: clamp(28px, 4vw, 40px);
+            margin-bottom: 48px;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 32px 24px;
+            text-align: center;
+            transition: var(--transition);
+        }
+        .feature-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow);
+        }
+        .feature-card .icon { font-size: 40px; margin-bottom: 16px; }
+        .feature-card h3 { font-size: 18px; margin-bottom: 8px; }
+        .feature-card p { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+
+        .how-it-works {
+            padding: 80px 24px;
+            background: var(--bg-secondary);
+        }
+        .how-it-works-inner {
+            max-width: var(--landing-max);
+            margin: 0 auto;
+        }
+        .how-it-works h2 { text-align: center; font-size: clamp(28px, 4vw, 40px); margin-bottom: 48px; }
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+        .step-card {
+            text-align: center;
+            padding: 24px;
+        }
+        .step-card .step-num {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 800;
+            margin: 0 auto 16px;
+        }
+        .step-card h4 { font-size: 16px; margin-bottom: 8px; }
+        .step-card p { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+
+        .pricing-section {
+            padding: 80px 24px;
+            max-width: var(--landing-max);
+            margin: 0 auto;
+        }
+        .pricing-section h2 { text-align: center; font-size: clamp(28px, 4vw, 40px); margin-bottom: 48px; }
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 32px 24px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+        }
+        .pricing-card.popular {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 30px rgba(77,108,245,0.15);
+        }
+        .pricing-card.popular::before {
+            content: 'Most Popular';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            padding: 4px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .pricing-card:hover { border-color: var(--accent-blue); transform: translateY(-4px); }
+        .pricing-card .pkg-name { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .pricing-card .pkg-price { font-size: 42px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 4px; }
+        .pricing-card .pkg-tokens { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+        .pricing-card .pkg-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+        .pricing-card .btn { width: 100%; padding: 12px; font-size: 15px; }
+
+        .cta-section {
+            text-align: center;
+            padding: 80px 24px;
+            background: linear-gradient(135deg, rgba(77,108,245,0.1), rgba(139,92,246,0.1));
+        }
+        .cta-section h2 { font-size: clamp(28px, 4vw, 40px); margin-bottom: 16px; }
+        .cta-section p { color: var(--text-secondary); font-size: 18px; margin-bottom: 32px; }
+        .cta-section .btn { padding: 14px 40px; font-size: 16px; }
+
+        .landing-footer {
+            padding: 40px 24px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+        .landing-footer .footer-links { display: flex; gap: 24px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .landing-footer .footer-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; }
+        .landing-footer .footer-links a:hover { color: var(--text-secondary); }
+        .landing-footer .copyright { color: var(--text-muted); font-size: 12px; }
+
+        @media (max-width: 900px) {
+            .features-grid, .pricing-grid, .steps-grid { grid-template-columns: 1fr; }
+            .hero-stats { gap: 24px; }
+            .landing-nav { flex-wrap: wrap; gap: 12px; justify-content: center; }
+            .landing-nav .nav-links { display: none; }
+            .landing-hero { padding: 60px 16px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar" style="background:transparent;border-bottom-color:transparent;position:absolute;width:100%;z-index:10">
+        <div class="landing-nav">
+            <div class="nav-brand">
+                <span class="brand-icon">&#9900;</span>
+                <span class="brand-text">NeuralPulse</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#pricing">Pricing</a>
+                <a href="/docs" target="_blank">API</a>
+                <a href="/app/login.html">Sign In</a>
+            </div>
+            <div class="nav-cta">
+                <a href="/app/login.html" class="btn btn-outline">Log In</a>
+                <a href="/app/login.html?register=1" class="btn btn-primary">Get Started Free</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="landing-hero">
+        <h1>Optimize Ad Creative with Brain-Grade Science</h1>
+        <p>NeuralPulse Engine simulates fMRI-level neural responses to your ads — measuring attention, dopamine triggers, and memory encoding frame-by-frame. No equipment needed.</p>
+        <div class="hero-cta">
+            <a href="/app/login.html?register=1" class="btn btn-primary">Start Free Analysis &rarr;</a>
+            <a href="#features" class="btn btn-outline">See How It Works</a>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat"><div class="num">24</div><div class="label">Brain ROIs Tracked</div></div>
+            <div class="hero-stat"><div class="num">3</div><div class="label">Core Neural Dimensions</div></div>
+            <div class="hero-stat"><div class="num">99%</div><div class="label">Ad Format Coverage</div></div>
+        </div>
+    </section>
+
+    <section id="features" class="features-section">
+        <h2>What NeuralPulse Measures</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="icon">&#128200;</div>
+                <h3>Frame-by-Frame Drop-offs</h3>
+                <p>Pinpoint exact moments viewers disengage. Our temporal analysis maps attention dips, scene breaks, and visual fatigue frame-by-frame.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">&#9889;</div>
+                <h3>Dopamine Trigger Tracking</h3>
+                <p>Identify reward peaks — surprise, novelty, anticipation — that drive emotional engagement and purchase intent.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">&#128218;</div>
+                <h3>Memory Encoding Score</h3>
+                <p>Measure how well your ad will be remembered. Our hippocampal model predicts recall probability across different audiences.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">&#9881;</div>
+                <h3>A/B Neural Testing</h3>
+                <p>Compare up to 3 ad variants head-to-head. See which creative wins on attention, dopamine, and memory — statistically validated.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">&#9997;</div>
+                <h3>Copy Optimization</h3>
+                <p>Test 8 psychological framing types. Our linguistics engine scores word-level neural impact for maximum persuasive power.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">&#128202;</div>
+                <h3>Actionable Directives</h3>
+                <p>P0/P1/P2 prioritized directives tell you exactly what to change, where, and the expected impact of each edit.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="how-it-works">
+        <div class="how-it-works-inner">
+            <h2>How It Works</h2>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <h4>Upload Creative</h4>
+                    <p>Drop your video, audio, or text ad into the analyzer. Supports MP4, MOV, MP3, WAV, and plain text.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <h4>Neural Simulation</h4>
+                    <p>Our TRIBE v2 model simulates 20,000+ cortical voxel responses across 24 brain regions in real-time.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <h4>Get Scores</h4>
+                    <p>Receive attention, dopamine, and memory scores with frame-level granularity and industry benchmarks.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">4</div>
+                    <h4>Optimize &amp; Repeat</h4>
+                    <p>Follow P0/P1/P2 directives to fix drop-offs, boost triggers, and improve your grade. A/B test the results.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="pricing-section">
+        <h2>Token-Based Pricing</h2>
+        <p style="text-align:center;color:var(--text-secondary);margin-bottom:40px">Each analysis consumes tokens. Buy bundles that fit your workflow.</p>
+        <div class="pricing-grid" id="pricingGrid">
+            <div class="pricing-card">
+                <div class="pkg-name">Starter</div>
+                <div class="pkg-price">$9.99</div>
+                <div class="pkg-tokens">100 Tokens</div>
+                <div class="pkg-desc">~10 video analyses or 100 text analyses. Perfect for testing.</div>
+                <a href="/app/login.html?register=1" class="btn btn-outline">Get Started</a>
+            </div>
+            <div class="pricing-card popular">
+                <div class="pkg-name">Pro</div>
+                <div class="pkg-price">$39.99</div>
+                <div class="pkg-tokens">500 Tokens</div>
+                <div class="pkg-desc">~50 video analyses or 500 text analyses. Best value for regular use.</div>
+                <a href="/app/login.html?register=1" class="btn btn-primary">Get Pro</a>
+            </div>
+            <div class="pricing-card">
+                <div class="pkg-name">Agency</div>
+                <div class="pkg-price">$149.99</div>
+                <div class="pkg-tokens">2,500 Tokens</div>
+                <div class="pkg-desc">~250 video analyses. Volume pricing for agencies and teams.</div>
+                <a href="/app/login.html?register=1" class="btn btn-outline">Contact Sales</a>
+            </div>
+        </div>
+        <p style="text-align:center;color:var(--text-muted);font-size:13px;margin-top:16px">Token costs: Video=50, Audio=30, Text=10, Copy=10, A/B Test=25</p>
+    </section>
+
+    <section class="cta-section">
+        <h2>Ready to See Inside Your Audience's Brain?</h2>
+        <p>Join marketers using neural data to optimize ad creative. Start with 100 free tokens.</p>
+        <a href="/app/login.html?register=1" class="btn btn-primary">Claim Your Free Tokens &rarr;</a>
+    </section>
+
+    <footer class="landing-footer">
+        <div class="footer-links">
+            <a href="/app/privacy.html">Privacy Policy</a>
+            <a href="/app/terms.html">Terms of Service</a>
+            <a href="/docs">API Documentation</a>
+            <a href="mailto:support@neuralpulse.ai">Contact</a>
+        </div>
+        <div class="copyright">&copy; 2026 NeuralPulse Engine. All rights reserved.</div>
+    </footer>
+
+    <script>
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                const target = document.querySelector(a.getAttribute('href'));
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+        fetch(window.location.origin + '/billing/packages')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.packages) {
+                    const grid = document.getElementById('pricingGrid');
+                    grid.innerHTML = data.packages.map((p, i) => `
+                        <div class="pricing-card ${p.popular ? 'popular' : ''}">
+                            ${p.popular ? '' : ''}
+                            <div class="pkg-name">${p.name}</div>
+                            <div class="pkg-price">${p.price_display}</div>
+                            <div class="pkg-tokens">${p.tokens.toLocaleString()} Tokens</div>
+                            <div class="pkg-desc">${p.description || ''}</div>
+                            <a href="/app/login.html?register=1" class="btn ${p.popular ? 'btn-primary' : 'btn-outline'}">Get ${p.name}</a>
+                        </div>
+                    `).join('');
+                }
+            })
+            .catch(() => {});
+    </script>
+</body>
+</html>

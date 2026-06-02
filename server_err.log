@@ -1,0 +1,10 @@
+INFO:     Will watch for changes in these directories: ['E:\\Downloads\\react\\Neuralpulse-engine']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [12236] using WatchFiles
+INFO:     Started server process [26988]
+INFO:     Waiting for application startup.
+2026-05-29 10:34:14,869 [INFO] api.main: Initializing TRIBE v2 adapter...
+2026-05-29 10:34:14,893 [INFO] neuromarketing.tribe_adapter: Using simulated TRIBE v2 predictions
+2026-05-29 10:34:14,918 [INFO] api.main: TRIBE v2 initialized: True
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'api\database.py'. Reloading...

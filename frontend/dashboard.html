@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NeuralPulse Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --touch-target: 44px;
+            --mobile-nav-height: 64px;
+            --side-panel-width: 260px;
+        }
+
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .side-panel {
+            width: var(--side-panel-width);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 50;
+            overflow-y: auto;
+        }
+
+        .side-panel .nav-brand { margin-bottom: 24px; }
+        .side-panel .token-banner {
+            background: linear-gradient(135deg, rgba(77,108,245,0.15), rgba(139,92,246,0.15));
+            border: 1px solid rgba(77,108,245,0.3);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .side-panel .token-banner .balance { font-size: 28px; font-weight: 800; color: var(--accent-cyan); }
+        .side-panel .token-banner .label { font-size: 12px; color: var(--text-muted); }
+        .side-panel .token-banner .buy-link {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .side-panel .nav-links-side {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+        .side-panel .nav-links-side a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+            min-height: var(--touch-target);
+        }
+        .side-panel .nav-links-side a:hover, .side-panel .nav-links-side a.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        .side-panel .user-section {
+            margin-top: auto;
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+        }
+        .side-panel .user-section .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .side-panel .user-section .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+        }
+        .side-panel .user-section .user-name { font-size: 14px; font-weight: 600; }
+        .side-panel .user-section .user-email { font-size: 12px; color: var(--text-muted); }
+        .side-panel .user-section .logout-btn {
+            width: 100%;
+            padding: 8px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: var(--transition);
+        }
+        .side-panel .user-section .logout-btn:hover { color: var(--accent-red); border-color: rgba(239,68,68,0.3); }
+
+        .main-content {
+            margin-left: var(--side-panel-width);
+            flex: 1;
+            padding: 24px 32px;
+            min-height: 100vh;
+            width: calc(100% - var(--side-panel-width));
+        }
+
+        .main-content .section-header { text-align: left; }
+
+        .directives-section { margin: 24px 0; }
+        .directives-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+        .directive-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            border-left: 3px solid var(--accent-blue);
+        }
+        .directive-card.p0 { border-left-color: var(--accent-red); }
+        .directive-card.p1 { border-left-color: var(--accent-orange); }
+        .directive-card.p2 { border-left-color: var(--accent-blue); }
+        .directive-card .dir-priority {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .directive-card.p0 .dir-priority { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+        .directive-card.p1 .dir-priority { background: rgba(245,158,11,0.2); color: var(--accent-orange); }
+        .directive-card.p2 .dir-priority { background: rgba(77,108,245,0.2); color: var(--accent-blue); }
+        .directive-card .dir-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+        .directive-card .dir-action { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+        .directive-card .dir-impact { font-size: 12px; color: var(--accent-green); }
+        .directive-card .dir-impl { font-size: 12px; color: var(--text-muted); margin-top: 4px; padding: 6px 8px; background: var(--bg-secondary); border-radius: 4px; }
+
+        .frame-analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .frame-analysis-table th {
+            text-align: left;
+            padding: 8px 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .frame-analysis-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(42,45,90,0.5);
+        }
+        .frame-analysis-table .dropoff-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .frame-analysis-table .dropoff-badge.critical { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+        .frame-analysis-table .dropoff-badge.moderate { background: rgba(245,158,11,0.2); color: var(--accent-orange); }
+        .frame-analysis-table .trigger-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(16,185,129,0.2);
+            color: var(--accent-green);
+        }
+
+        .benchmark-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+        .benchmark-bar .bench-label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+        .benchmark-bar .bench-track {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            position: relative;
+            overflow: visible;
+        }
+        .benchmark-bar .bench-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            transition: width 0.6s ease;
+        }
+        .benchmark-bar .bench-marker {
+            position: absolute;
+            top: -4px;
+            width: 2px;
+            height: 16px;
+            background: var(--accent-orange);
+            border-radius: 1px;
+        }
+        .benchmark-bar .bench-marker-label {
+            position: absolute;
+            top: -18px;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--accent-orange);
+            white-space: nowrap;
+        }
+        .benchmark-bar .bench-percentile { font-size: 14px; font-weight: 700; color: var(--accent-cyan); white-space: nowrap; }
+
+        .history-cards { display: none; }
+        .history-table-wrap { overflow-x: auto; }
+
+        .insufficient-tokens-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .insufficient-tokens-modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        .insufficient-tokens-modal h3 { margin-bottom: 12px; }
+        .insufficient-tokens-modal p { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+        .insufficient-tokens-modal .btn { margin: 4px; }
+
+        .trigger-timeline {
+            display: flex;
+            gap: 4px;
+            padding: 12px 0;
+            overflow-x: auto;
+        }
+        .trigger-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            position: relative;
+            cursor: pointer;
+        }
+        .trigger-dot.high { background: var(--accent-green); }
+        .trigger-dot.medium { background: var(--accent-orange); }
+        .trigger-dot.low { background: var(--accent-blue); }
+        .trigger-dot.dropoff { background: var(--accent-red); width: 14px; height: 14px; }
+        .trigger-dot:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 10;
+            color: var(--text-primary);
+        }
+
+        .tab-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            z-index: 100;
+            padding: 4px 0;
+            padding-bottom: env(safe-area-inset-bottom, 4px);
+            justify-content: space-around;
+        }
+        .tab-bar a {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 6px 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 10px;
+            font-weight: 500;
+            min-width: var(--touch-target);
+            min-height: var(--touch-target);
+            justify-content: center;
+            transition: var(--transition);
+            border-radius: var(--radius-sm);
+        }
+        .tab-bar a .tab-icon { font-size: 20px; }
+        .tab-bar a.active { color: var(--accent-cyan); }
+        .tab-bar a:hover { color: var(--text-primary); }
+
+        @media (max-width: 768px) {
+            .side-panel { display: none; }
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+                padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+            }
+            .tab-bar { display: flex; }
+            .history-cards { display: block; }
+            .history-table-wrap { display: none; }
+            .audit-card {
+                background: var(--bg-card);
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-sm);
+                padding: 14px;
+                margin-bottom: 8px;
+            }
+            .audit-card .audit-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+            .audit-card .audit-row .label { color: var(--text-muted); }
+            .audit-card .audit-row .value { font-weight: 600; }
+            .directives-grid { grid-template-columns: 1fr; }
+            .main-content .section-header { text-align: center; }
+            .main-content .section-header h1 { font-size: 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .main-content { padding: 12px; }
+            .upload-cards { gap: 12px; }
+            .upload-card { padding: 20px 16px; }
+            .scores-grid { gap: 12px; }
+            .score-card { padding: 14px; }
+            .score-value { font-size: 28px; }
+            .chart-row { gap: 12px; }
+            .chart-card { padding: 14px; }
+            .frame-analysis-table { font-size: 11px; }
+            .frame-analysis-table th, .frame-analysis-table td { padding: 6px 8px; }
+        }
+
+        .brain-section {
+            margin-top: 20px;
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .brain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: #0a0a0f;
+        }
+        .brain-header h3 { margin: 0; font-size: 15px; color: rgba(255,255,255,0.7); font-weight: 400; }
+        .brain-mode-switch { display: flex; gap: 6px; }
+        .brain-mode-btn {
+            padding: 4px 14px;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .brain-mode-btn.active {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-color: rgba(255,255,255,0.3);
+        }
+        .brain-mode-btn:hover { color: #fff; }
+        .brain-iframe-wrap {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background: #000;
+        }
+        .brain-iframe-wrap iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        .brain-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.3);
+            font-size: 13px;
+            background: #000;
+            z-index: 1;
+        }
+        .brain-loading.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="insufficientTokens" class="insufficient-tokens-overlay" style="display:none">
+        <div class="insufficient-tokens-modal">
+            <h3>&#9888; Insufficient Tokens</h3>
+            <p id="insufficientMsg">You don't have enough tokens for this analysis.</p>
+            <button class="btn btn-primary" onclick="window.location.href='/app/pricing.html'">Buy Tokens</button>
+            <button class="btn btn-outline" onclick="document.getElementById('insufficientTokens').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <div class="app-layout">
+        <aside class="side-panel">
+            <div class="nav-brand">
+                <span class="brand-icon">&#9900;</span>
+                <span class="brand-text">NeuralPulse</span>
+            </div>
+            <div class="token-banner">
+                <div class="balance" id="sideBalance">0</div>
+                <div class="label">Tokens Available</div>
+                <a href="/app/pricing.html" class="buy-link">Buy More</a>
+            </div>
+            <div class="nav-links-side">
+                <a href="#analyze" class="active" onclick="switchSection('analyze')"><span>&#128202;</span> Analyze</a>
+                <a href="#ab-test" onclick="switchSection('ab-test')"><span>&#9878;</span> A/B Test</a>
+                <a href="#copy" onclick="switchSection('copy')"><span>&#9997;</span> Copywriting</a>
+                <a href="#history" onclick="switchSection('history')"><span>&#128214;</span> History</a>
+            </div>
+            <div class="user-section">
+                <div class="user-info">
+                    <div class="user-avatar" id="sideAvatar">D</div>
+                    <div>
+                        <div class="user-name" id="sideName">User</div>
+                        <div class="user-email" id="sideEmail">user@email.com</div>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="nav-brand" style="justify-content:center;margin-bottom:20px;display:none" id="mobileBrand">
+                <span class="brand-icon">&#9900;</span>
+                <span class="brand-text">NeuralPulse</span>
+                <span style="font-size:13px;color:var(--text-muted);margin-left:8px" id="mobileBalance">0 tokens</span>
+            </div>
+
+            <section id="section-analyze" class="section active">
+                <header class="section-header">
+                    <h1>Brain-Validated Ad Analysis</h1>
+                    <p>Upload creative to receive neural response scores. Costs tokens per analysis.</p>
+                </header>
+
+                <div class="upload-cards">
+                    <div class="upload-card" data-type="video">
+                        <div class="upload-icon">&#9654;</div>
+                        <h3>Video Ad <span style="font-size:11px;color:var(--text-muted)">(50 tokens)</span></h3>
+                        <p>MP4, MOV, WebM</p>
+                        <input type="file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" class="file-input" data-media="video">
+                        <button class="btn btn-primary upload-btn" disabled>Analyze Video</button>
+                    </div>
+                    <div class="upload-card" data-type="audio">
+                        <div class="upload-icon">&#9835;</div>
+                        <h3>Audio Ad <span style="font-size:11px;color:var(--text-muted)">(30 tokens)</span></h3>
+                        <p>MP3, WAV, OGG</p>
+                        <input type="file" accept="audio/mpeg,audio/wav,audio/ogg" class="file-input" data-media="audio">
+                        <button class="btn btn-primary upload-btn" disabled>Analyze Audio</button>
+                    </div>
+                    <div class="upload-card" data-type="text">
+                        <div class="upload-icon">&#9998;</div>
+                        <h3>Text / Copy <span style="font-size:11px;color:var(--text-muted)">(10 tokens)</span></h3>
+                        <p>Paste or upload .txt</p>
+                        <textarea class="text-input" placeholder="Paste your ad copy, headline, or sales page text here..." rows="4"></textarea>
+                        <div class="upload-row">
+                            <input type="file" accept=".txt" class="file-input" data-media="text">
+                            <button class="btn btn-primary text-analyze-btn">Analyze Text</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Running neural simulation via TRIBE v2...</p>
+                </div>
+
+                <div id="results" class="results hidden"></div>
+            </section>
+
+            <section id="section-ab-test" class="section">
+                <header class="section-header">
+                    <h1>A/B Testing <span style="font-size:14px;color:var(--text-muted)">(25 tokens)</span></h1>
+                    <p>Compare multiple ad variants to find the highest neural engagement.</p>
+                </header>
+                <div class="ab-controls">
+                    <div class="ab-type-selector">
+                        <button class="btn btn-outline ab-type active" data-media="video">Video</button>
+                        <button class="btn btn-outline ab-type" data-media="audio">Audio</button>
+                        <button class="btn btn-outline ab-type" data-media="text">Text</button>
+                    </div>
+                    <div class="ab-upload-area" id="abUploadArea">
+                        <div class="ab-variant" data-idx="0">
+                            <label>Variant A</label>
+                            <input type="file" class="ab-file" accept="video/*,audio/*,.txt">
+                            <textarea class="ab-text hidden" placeholder="Paste variant A text..."></textarea>
+                        </div>
+                        <div class="ab-variant" data-idx="1">
+                            <label>Variant B</label>
+                            <input type="file" class="ab-file" accept="video/*,audio/*,.txt">
+                            <textarea class="ab-text hidden" placeholder="Paste variant B text..."></textarea>
+                        </div>
+                        <div class="ab-variant" data-idx="2">
+                            <label>Variant C (optional)</label>
+                            <input type="file" class="ab-file" accept="video/*,audio/*,.txt">
+                            <textarea class="ab-text hidden" placeholder="Paste variant C text..."></textarea>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="abRunBtn">Run A/B Comparison</button>
+                </div>
+                <div id="abLoading" class="loading hidden"><div class="spinner"></div><p>Comparing variants...</p></div>
+                <div id="abResults" class="results hidden"></div>
+            </section>
+
+            <section id="section-copy" class="section">
+                <header class="section-header">
+                    <h1>Neural Copywriting <span style="font-size:14px;color:var(--text-muted)">(10 tokens)</span></h1>
+                    <p>Test framing strategies for maximum neural impact.</p>
+                </header>
+                <div class="copy-controls">
+                    <div class="copy-variant">
+                        <label>Original Copy</label>
+                        <textarea id="copyOriginal" rows="4" placeholder="Paste original copy..."></textarea>
+                    </div>
+                    <div class="copy-variant">
+                        <label>Variant 1</label>
+                        <select id="copyFraming1" class="framing-select">
+                            <option value="gain">Gain Framing</option>
+                            <option value="loss">Loss Framing</option>
+                            <option value="urgency">Urgency</option>
+                            <option value="social_proof">Social Proof</option>
+                            <option value="authority">Authority</option>
+                            <option value="curiosity">Curiosity Gap</option>
+                            <option value="pain_point">Pain Point</option>
+                            <option value="aspirational">Aspirational</option>
+                        </select>
+                        <textarea id="copyVariant1" rows="4" placeholder="Paste variant 1..."></textarea>
+                    </div>
+                    <div class="copy-variant">
+                        <label>Variant 2</label>
+                        <select id="copyFraming2" class="framing-select">
+                            <option value="loss">Loss Framing</option>
+                            <option value="gain">Gain Framing</option>
+                            <option value="urgency">Urgency</option>
+                            <option value="social_proof">Social Proof</option>
+                            <option value="authority">Authority</option>
+                            <option value="curiosity">Curiosity Gap</option>
+                            <option value="pain_point">Pain Point</option>
+                            <option value="aspirational">Aspirational</option>
+                        </select>
+                        <textarea id="copyVariant2" rows="4" placeholder="Paste variant 2..."></textarea>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="copyRunBtn">Compare Neural Response</button>
+                <div id="copyLoading" class="loading hidden"><div class="spinner"></div><p>Analyzing linguistic patterns...</p></div>
+                <div id="copyResults" class="results hidden"></div>
+            </section>
+
+            <section id="section-history" class="section">
+                <header class="section-header">
+                    <h1>Analysis History</h1>
+                    <p>Your past analyses and token usage.</p>
+                </header>
+                <div id="historyLoading" class="loading"><div class="spinner"></div><p>Loading history...</p></div>
+                <div id="historyContent"></div>
+            </section>
+        </main>
+    </div>
+
+    <nav class="tab-bar">
+        <a href="#analyze" class="active" onclick="switchSection('analyze')">
+            <span class="tab-icon">&#128202;</span> Analyze
+        </a>
+        <a href="#ab-test" onclick="switchSection('ab-test')">
+            <span class="tab-icon">&#9878;</span> A/B
+        </a>
+        <a href="#copy" onclick="switchSection('copy')">
+            <span class="tab-icon">&#9997;</span> Copy
+        </a>
+        <a href="#history" onclick="switchSection('history')">
+            <span class="tab-icon">&#128214;</span> History
+        </a>
+    </nav>
+
+    <script src="js/app.js"></script>
+    <script src="js/charts.js"></script>
+</body>
+</html>
