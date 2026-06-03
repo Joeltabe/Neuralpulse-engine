@@ -3,10 +3,11 @@ from typing import Optional, List, Dict, Any, Tuple
 import logging
 import os
 import struct
+import json
 
 from .config import (
     USE_REAL_MODEL, TRIBE_MODEL_NAME, MODEL_CACHE_DIR, DEVICE,
-    ATTENTION_ROIS, DOPAMINE_ROIS, MEMORY_ROIS
+    TRIBE_API_URL, ATTENTION_ROIS, DOPAMINE_ROIS, MEMORY_ROIS
 )
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,21 @@ SOMATOMOTOR_ROIS = ["M1", "S1", "SMA"]
 ALL_ROIS = VISUAL_ROIS + AUDITORY_ROIS + LANGUAGE_ROIS + ATTENTION_ROIS_FULL + \
            DOPAMINE_ROIS_FULL + MEMORY_ROIS_FULL + SOMATOMOTOR_ROIS
 
+# Map each ROI to the HF Space API chart_data region name
+ROI_TO_API_REGION: Dict[str, str] = {
+    "V1": "Visual", "V2": "Visual", "V3": "Visual", "V4": "Visual", "MT": "Visual",
+    "M1": "Motor", "S1": "Motor", "SMA": "Motor",
+    "A1": "Auditory", "A2": "Auditory", "MTG": "Auditory",
+    "FEF": "Attention", "IPS": "Attention", "SPL": "Attention", "TPJ": "Attention",
+    "IFG": "Language", "AG": "Language", "Precuneus": "Language",
+    "STG": "Language",
+    "VS": "Emotion", "NAcc": "Emotion", "vmPFC": "Emotion",
+    "SN": "Emotion", "VTA": "Emotion", "Caude": "Emotion",
+    "HIP": "Language", "PHC": "Visual", "PRC": "Visual",
+    "ERC": "Language", "ANG": "Attention", "PCC": "Attention", "DLPFC": "Attention",
+    "MPFC": "Emotion",
+}
+
 
 class TribeAdapter:
     def __init__(self):
@@ -36,12 +52,24 @@ class TribeAdapter:
         self._initialized = False
         self._video_profile = None
         self._audio_profile = None
+        self._session = None
+
+    @property
+    def session(self):
+        if self._session is None:
+            import requests
+            self._session = requests.Session()
+        return self._session
 
     def initialize(self) -> bool:
         if self._initialized:
             return True
 
         if USE_REAL_MODEL:
+            tried_local = False
+            tried_api = False
+
+            # Try loading the local tribev2 model (requires PyTorch)
             try:
                 from tribev2 import TribeModel
                 self.model = TribeModel.from_pretrained(
@@ -49,52 +77,81 @@ class TribeAdapter:
                     cache_folder=MODEL_CACHE_DIR
                 )
                 self._initialized = True
-                logger.info("TRIBE v2 model loaded successfully")
+                logger.info("TRIBE v2 model loaded successfully (local)")
                 return True
             except Exception as e:
-                logger.warning(f"Failed to load real TRIBE v2 model: {e}")
-                logger.info("Falling back to simulated predictions")
-                self._initialized = True
-                return True
+                logger.warning(f"Local TRIBE v2 model failed: {e}")
+                tried_local = True
+
+            # Fallback: try the remote Hugging Face Space API
+            try:
+                import requests
+                resp = requests.get(f"{TRIBE_API_URL}/", timeout=10)
+                if resp.status_code == 200:
+                    self._initialized = True
+                    logger.info(f"TRIBE v2 remote API ready at {TRIBE_API_URL}")
+                    return True
+            except Exception as e:
+                logger.warning(f"TRIBE v2 remote API unavailable: {e}")
+                tried_api = True
+
+            logger.info("Falling back to simulated predictions")
+            self._initialized = True
+            return True
         else:
             logger.info("Using enhanced simulated TRIBE v2 predictions")
             self._initialized = True
             return True
 
     def predict_from_video(self, video_path: str) -> Tuple[np.ndarray, List[Dict]]:
-        if USE_REAL_MODEL and self.model is not None:
+        if USE_REAL_MODEL:
+            if self.model is not None:
+                try:
+                    df = self.model.get_events_dataframe(video_path=video_path)
+                    preds, segments = self.model.predict(events=df)
+                    return preds, segments
+                except Exception as e:
+                    logger.error(f"Local prediction failed: {e}")
             try:
-                df = self.model.get_events_dataframe(video_path=video_path)
-                preds, segments = self.model.predict(events=df)
-                return preds, segments
+                return self._api_video_prediction(video_path)
             except Exception as e:
-                logger.error(f"Real prediction failed: {e}, using simulation")
+                logger.error(f"API video prediction failed: {e}, using simulation")
 
         return self._simulate_video_prediction(video_path)
 
     def predict_from_audio(self, audio_path: str) -> Tuple[np.ndarray, List[Dict]]:
-        if USE_REAL_MODEL and self.model is not None:
+        if USE_REAL_MODEL:
+            if self.model is not None:
+                try:
+                    df = self.model.get_events_dataframe(audio_path=audio_path)
+                    preds, segments = self.model.predict(events=df)
+                    return preds, segments
+                except Exception as e:
+                    logger.error(f"Local audio prediction failed: {e}")
             try:
-                df = self.model.get_events_dataframe(audio_path=audio_path)
-                preds, segments = self.model.predict(events=df)
-                return preds, segments
+                return self._api_audio_prediction(audio_path)
             except Exception as e:
-                logger.error(f"Real audio prediction failed: {e}")
+                logger.error(f"API audio prediction failed: {e}")
 
         return self._simulate_audio_prediction(audio_path)
 
     def predict_from_text(self, text: str) -> Tuple[np.ndarray, List[Dict]]:
-        if USE_REAL_MODEL and self.model is not None:
+        if USE_REAL_MODEL:
+            if self.model is not None:
+                try:
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+                        f.write(text)
+                        text_path = f.name
+                    df = self.model.get_events_dataframe(text_path=text_path)
+                    preds, segments = self.model.predict(events=df)
+                    return preds, segments
+                except Exception as e:
+                    logger.error(f"Local text prediction failed: {e}")
             try:
-                import tempfile
-                with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-                    f.write(text)
-                    text_path = f.name
-                df = self.model.get_events_dataframe(text_path=text_path)
-                preds, segments = self.model.predict(events=df)
-                return preds, segments
+                return self._api_text_prediction(text)
             except Exception as e:
-                logger.error(f"Real text prediction failed: {e}")
+                logger.error(f"API text prediction failed: {e}")
 
         return self._simulate_text_prediction(text)
 
@@ -162,6 +219,91 @@ class TribeAdapter:
         except Exception:
             pass
         return profile
+
+    def _call_api_json(self, endpoint: str, data: dict = None, files: dict = None) -> dict:
+        import requests
+        url = f"{TRIBE_API_URL}{endpoint}"
+        if data:
+            resp = self.session.post(url, data=data, timeout=300)
+        elif files:
+            resp = self.session.post(url, files=files, timeout=300)
+        else:
+            resp = self.session.get(url, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+
+    def _api_response_to_preds(self, api_data: dict, modality: str) -> Tuple[np.ndarray, List[Dict]]:
+        chart_data = api_data.get("chart_data", [])
+        n_timesteps = len(chart_data)
+        if n_timesteps == 0:
+            n_timesteps = api_data.get("total_timesteps", 10)
+
+        duration = n_timesteps * 1.0
+        n_vertices = CORTICAL_VERTICES
+
+        preds = np.zeros((n_timesteps, n_vertices), dtype=np.float32)
+
+        for t in range(n_timesteps):
+            if t < len(chart_data):
+                row = chart_data[t]
+            else:
+                row = chart_data[-1] if chart_data else {}
+
+            for i, roi in enumerate(ALL_ROIS):
+                region = ROI_TO_API_REGION.get(roi, "Attention")
+                val = row.get(region, row.get("overall", 50.0)) / 100.0
+                if i == 0:
+                    start_v = 0
+                else:
+                    start_v = (i * n_vertices) // len(ALL_ROIS)
+                end_v = ((i + 1) * n_vertices) // len(ALL_ROIS)
+                preds[t, start_v:end_v] = np.clip(val, 0.0, 1.0)
+
+        preds += 0.02 * np.random.RandomState(42).randn(n_timesteps, n_vertices).astype(np.float32)
+        preds = np.clip(preds, 0.0, 1.0)
+
+        segment_interval = duration / max(n_timesteps, 1)
+        segments = []
+        for i in range(n_timesteps):
+            segments.append({
+                "start": i * segment_interval,
+                "end": min((i + 1) * segment_interval, duration),
+                "type": modality + "_chunk",
+            })
+
+        return preds, segments
+
+    def _api_text_prediction(self, text: str) -> Tuple[np.ndarray, List[Dict]]:
+        logger.info("Calling TRIBE v2 API for text analysis...")
+        data = self._call_api_json("/api/analyze-text", data={"text": text})
+        words = text.split()
+        duration = max(len(words) * 0.4, 1.0)
+        preds, segments = self._api_response_to_preds(data, "text")
+        for i, seg in enumerate(segments):
+            wi = min(i, len(words) - 1) if words else 0
+            seg["word"] = words[wi] if words else ""
+        return preds, segments
+
+    def _api_video_prediction(self, video_path: str) -> Tuple[np.ndarray, List[Dict]]:
+        logger.info("Calling TRIBE v2 API for video analysis...")
+        import os
+        with open(video_path, "rb") as f:
+            files = {"video": (os.path.basename(video_path), f, "video/mp4")}
+            data = self._call_api_json("/api/analyze-video", files=files)
+        return self._api_response_to_preds(data, "video")
+
+    def _api_audio_prediction(self, audio_path: str) -> Tuple[np.ndarray, List[Dict]]:
+        logger.info("Audio not supported by remote API, using text-based fallback")
+        import speech_recognition as sr
+        try:
+            r = sr.Recognizer()
+            with sr.AudioFile(audio_path) as source:
+                audio = r.record(source)
+            text = r.recognize_google(audio)
+            return self._api_text_prediction(text)
+        except Exception as e:
+            logger.warning(f"Audio transcription failed: {e}, using simulation")
+            return self._simulate_audio_prediction(audio_path)
 
     def _build_cortical_basis(self, n_vertices: int, modality: str) -> np.ndarray:
         np.random.seed(0)
