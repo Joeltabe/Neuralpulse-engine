@@ -436,9 +436,10 @@
                 <button data-view="posterior">Posterior</button>
             </div>
             <div class="mode-controls" id="modeControls">
-                <button class="active" data-mode="attention">Attention</button>
-                <button data-mode="dopamine">Dopamine</button>
-                <button data-mode="memory">Memory</button>
+                <button class="active" data-mode="heatmap">TRIBE ROI Heatmap</button>
+                <button data-mode="attention">Attention ROIs</button>
+                <button data-mode="dopamine">Reward/Emotion ROIs</button>
+                <button data-mode="memory">Narrative/Memory ROIs</button>
                 <span id="rotateIndicator" title="Click brain to toggle auto-rotate">Auto-rotate ON</span>
             </div>
         </div>
@@ -461,7 +462,10 @@
             <button class="btn btn-primary" id="runPredictionBtn" disabled>Run TRIBEv2 Prediction</button>
         </div>
 
-        <h3 style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">Or try demo activations</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+            <h3 style="font-size:14px;color:var(--text-secondary);margin:0">Or try demo activations</h3>
+            <button class="btn btn-secondary" id="cycleDemoBtn" type="button">Load demo activations</button>
+        </div>
         <div class="demo-grid" id="demoGrid">
             <div class="demo-card" data-demo="social">
                 <div class="demo-icon">&#128247;</div>
@@ -488,9 +492,9 @@
             <h3 style="font-size:15px;color:var(--text-secondary)">Sorted by activation strength</h3>
             <select id="regionFilter" style="background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-secondary);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;font-family:var(--font)">
                 <option value="all">All regions</option>
-                <option value="attention">Attention</option>
-                <option value="dopamine">Dopamine</option>
-                <option value="memory">Memory</option>
+                <option value="attention">Attention/social/visual</option>
+                <option value="dopamine">Reward/emotion</option>
+                <option value="memory">Narrative/memory/language</option>
             </select>
         </div>
         <div class="regions-list" id="regionsList"></div>
@@ -511,7 +515,7 @@
         <div class="api-box">
             <div class="api-header">
                 <span>tribev2/demo_utils.py</span>
-                <span class="lang">Python 3.12+</span>
+                <span class="lang">Python 3.11+</span>
             </div>
             <pre><code><span class="cm"># Load pretrained TRIBE v2 from HuggingFace and predict brain responses</span>
 <span class="kw">from</span> tribev2 <span class="kw">import</span> <span class="fn">TribeModel</span>
@@ -536,18 +540,24 @@ preds, segments = model.<span class="fn">predict</span>(events=df)
 
 <span class="fn">print</span>(preds.shape)  <span class="cm"># e.g. (12, 20484)</span>
 
-<span class="cm"># 4. Extract ROI-specific scores</span>
-roi_scores = model.<span class="fn">extract_roi_scores</span>(preds, [<span class="str">"V1"</span>, <span class="str">"FFA"</span>, <span class="str">"TPJ"</span>])
+<span class="cm"># 4. Average the time dimension before ROI aggregation</span>
+vertex_scores = preds.mean(axis=<span class="num">0</span>)  <span class="cm"># length ~= 20,484 fsaverage5 cortical vertices</span>
 
-<span class="cm"># 5. Generate brain surface plot</span>
-<span class="kw">from</span> tribev2.plotting <span class="kw">import</span> <span class="fn">PlotBrain</span>
-plotter = <span class="fn">PlotBrain</span>(mesh=<span class="str">"fsaverage5"</span>)
-fig = plotter.<span class="fn">plot_surf</span>(preds.mean(axis=<span class="num">0</span>))
+<span class="cm"># 5. Map vertices to your ROI atlas, then POST JSON to this UI</span>
+roi_payload = {
+    <span class="str">"scores"</span>: {<span class="str">"attention"</span>: <span class="num">0.0</span>, <span class="str">"dopamine"</span>: <span class="num">0.0</span>, <span class="str">"memory"</span>: <span class="num">0.0</span>},
+    <span class="str">"regions"</span>: [
+        {<span class="str">"name"</span>: <span class="str">"V1/V2 (Primary Visual)"</span>, <span class="str">"value"</span>: <span class="num">74</span>, <span class="str">"impact"</span>: <span class="str">"attention"</span>},
+        {<span class="str">"name"</span>: <span class="str">"FFA (Fusiform Face Area)"</span>, <span class="str">"value"</span>: <span class="num">91</span>, <span class="str">"impact"</span>: <span class="str">"attention"</span>},
+        {<span class="str">"name"</span>: <span class="str">"Amygdala"</span>, <span class="str">"value"</span>: <span class="num">84</span>, <span class="str">"impact"</span>: <span class="str">"dopamine"</span>},
+    ],
+}
+
+<span class="cm"># Frontend contract: brainViewer.loadActivations(roi_payload)</span>
 
 <span class="cm"># --- Deploy as API (FastAPI) ---</span>
 <span class="cm"># Install: pip install "tribev2 @ git+https://github.com/facebookresearch/tribev2.git"</span>
-<span class="cm"># Requires: torch, neuralset, neuraltrain, huggingface_hub</span>
-<span class="cm"># Authenticate: huggingface-cli login (needs gated LLaMA 3.2 access)</span>
+<span class="cm"># Official quick start: from_pretrained → get_events_dataframe(video/audio/text) → predict</span>
 </code></pre>
         </div>
         <div style="margin-top:16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius);padding:20px">
@@ -661,6 +671,7 @@ huggingface-cli login  # create a read token at https://huggingface.co/settings/
 
         let brainViewer = null;
         let currentDemo = null;
+        const DEMO_SEQUENCE = ['social', 'nature', 'podcast'];
 
         function initBrainViewer() {
             if (!document.getElementById('brainContainer')) return;
@@ -717,7 +728,7 @@ huggingface-cli login  # create a read token at https://huggingface.co/settings/
             if (card) card.style.borderColor = 'var(--accent-cyan)';
 
             if (brainViewer) {
-                brainViewer.loadScores(preset.scores);
+                brainViewer.loadActivations({ scores: preset.scores, regions: preset.regions });
             }
 
             document.getElementById('brainStatus').textContent =
@@ -803,6 +814,11 @@ huggingface-cli login  # create a read token at https://huggingface.co/settings/
                 card.addEventListener('click', () => loadDemo(card.dataset.demo));
             });
 
+            document.getElementById('cycleDemoBtn').addEventListener('click', () => {
+                const idx = Math.max(0, DEMO_SEQUENCE.indexOf(currentDemo));
+                loadDemo(DEMO_SEQUENCE[(idx + 1) % DEMO_SEQUENCE.length]);
+            });
+
             document.getElementById('regionFilter').addEventListener('change', () => {
                 if (currentDemo) updateRegionList(currentDemo);
             });
@@ -849,7 +865,11 @@ huggingface-cli login  # create a read token at https://huggingface.co/settings/
                         document.getElementById('inputStatus').innerHTML =
                             '<div style="text-align:center;padding:20px;color:var(--accent-green)">Prediction complete! Switch to Brain Render tab.</div>';
                         if (data.scores && brainViewer) {
-                            brainViewer.loadScores(data.scores);
+                            brainViewer.loadActivations({
+                                scores: data.scores,
+                                regions: data.regions || [],
+                                vertices: data.vertices || data.vertexActivations || null,
+                            });
                             currentDemo = 'custom';
                             DEMO_PRESETS.custom = {
                                 label: 'Upload Result',
