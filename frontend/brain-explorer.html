@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralPulse — Brain Explorer</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a14;
+            --bg-card: #12121f;
+            --bg-secondary: #1a1a2e;
+            --border-color: #2a2d5a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #9498c7;
+            --text-muted: #5c6090;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #4d6cf5;
+            --accent-purple: #8b5cf6;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --accent-green: #10b981;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --transition: all 0.2s ease;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .app-header .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+        .app-header .brand-icon { font-size: 22px; }
+        .app-header .header-links { display: flex; gap: 16px; align-items: center; }
+        .app-header .header-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+        }
+        .app-header .header-links a:hover { color: var(--text-primary); background: var(--bg-secondary); }
+
+        .tab-bar {
+            display: flex;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 24px;
+            gap: 0;
+            overflow-x: auto;
+        }
+        .tab-bar button {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+            white-space: nowrap;
+            font-family: var(--font);
+        }
+        .tab-bar button:hover { color: var(--text-secondary); }
+        .tab-bar button.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+        }
+
+        .tab-content { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
+        .tab-content.active { display: block; }
+
+        .brain-view-wrap {
+            position: relative;
+            width: 100%;
+            height: 520px;
+            background: #050510;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        .brain-view-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
+
+        .view-controls, .mode-controls {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .view-controls button, .mode-controls button {
+            padding: 6px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font);
+        }
+        .view-controls button:hover, .mode-controls button:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .view-controls button.active, .mode-controls button.active {
+            background: rgba(0,212,255,0.12);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            justify-content: center;
+        }
+        .heatmap-legend .gradient {
+            width: 200px;
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #000, #7f0000, #ff0000, #ffa500, #ffff00, #fff);
+            border: 1px solid var(--border-color);
+        }
+        .heatmap-legend span { font-size: 11px; color: var(--text-muted); }
+
+        .upload-area {
+            background: var(--bg-card);
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius);
+            padding: 48px 24px;
+            text-align: center;
+            transition: var(--transition);
+            margin-bottom: 24px;
+        }
+        .upload-area.dragover { border-color: var(--accent-cyan); background: rgba(0,212,255,0.04); }
+        .upload-area .upload-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+        .upload-area h3 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+        .upload-area p { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+        .upload-area input[type="file"] { display: none; }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .demo-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+        .demo-card:hover { border-color: var(--accent-cyan); background: rgba(0,212,255,0.04); }
+        .demo-card .demo-icon { font-size: 32px; margin-bottom: 8px; }
+        .demo-card h4 { font-size: 14px; margin-bottom: 4px; }
+        .demo-card p { font-size: 12px; color: var(--text-muted); }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .regions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .region-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+        }
+        .region-row:hover { border-color: rgba(0,212,255,0.2); }
+        .region-row .rank { font-size: 12px; color: var(--text-muted); width: 24px; text-align: right; }
+        .region-row .bar-wrap {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .region-row .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+        .region-row .region-name { font-size: 13px; font-weight: 500; width: 160px; }
+        .region-row .region-value { font-size: 12px; color: var(--text-muted); width: 48px; text-align: right; }
+        .region-row .region-impact {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-weight: 600;
+            width: 80px;
+            text-align: center;
+        }
+        .region-row .region-impact.attention { background: rgba(77,108,245,0.15); color: var(--accent-blue); }
+        .region-row .region-impact.dopamine { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+        .region-row .region-impact.memory { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+
+        .virality-score-wrap {
+            text-align: center;
+            padding: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+        }
+        .virality-score-wrap .big-number {
+            font-size: 72px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+        .virality-score-wrap .label { font-size: 14px; color: var(--text-secondary); margin-top: 8px; }
+        .virality-score-wrap .sub-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .virality-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .virality-factor {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+        }
+        .virality-factor h4 { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+        .virality-factor .vf-value { font-size: 22px; font-weight: 700; }
+        .virality-factor .vf-bar {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 8px;
+            background: var(--bg-secondary);
+            overflow: hidden;
+        }
+        .virality-factor .vf-fill { height: 100%; border-radius: 2px; }
+
+        .api-box {
+            background: #0d1117;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .api-box .api-header {
+            padding: 12px 16px;
+            background: #161b22;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .api-box .api-header span { font-size: 12px; color: var(--text-muted); }
+        .api-box .api-header .lang { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(0,212,255,0.1); color: var(--accent-cyan); }
+        .api-box pre {
+            padding: 20px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #c9d1d9;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+        .api-box code .kw { color: #ff7b72; }
+        .api-box code .fn { color: #d2a8ff; }
+        .api-box code .str { color: #a5d6ff; }
+        .api-box code .cm { color: #8b949e; }
+        .api-box code .op { color: #ffa657; }
+        .api-box code .num { color: #79c0ff; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .status-badge.running { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .status-badge.idle { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+
+        .brain-tooltip {
+            position: fixed;
+            background: rgba(10,10,20,0.95);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            padding: 12px;
+            max-width: 280px;
+            pointer-events: none;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            font-size: 12px;
+        }
+        .brain-view-wrap.loading::after {
+            content: 'Loading brain mesh...';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        #rotateIndicator {
+            cursor: pointer;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 10px;
+            background: rgba(0,212,255,0.1);
+            color: var(--accent-cyan);
+            user-select: none;
+        }
+        .brain-tip-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .brain-tip-name { font-weight: 600; font-size: 13px; }
+        .brain-tip-score { font-weight: 700; font-size: 14px; }
+        .brain-tip-section { margin-bottom: 4px; color: var(--text-secondary); line-height: 1.4; }
+        .brain-tip-section strong { color: var(--text-primary); }
+        .brain-tip-triggers { margin: 4px 0 0 16px; padding: 0; }
+        .brain-tip-triggers li { margin-bottom: 2px; }
+        .brain-tip-footer { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); }
+
+        .demographics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .demo-stat {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            text-align: center;
+        }
+        .demo-stat .ds-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .demo-stat .ds-value { font-size: 24px; font-weight: 700; }
+        .demo-stat .ds-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+        @media (max-width: 768px) {
+            .tab-content { padding: 16px; }
+            .brain-view-wrap { height: 360px; }
+            .control-row { flex-direction: column; align-items: stretch; }
+            .view-controls, .mode-controls { justify-content: center; }
+            .region-row .region-name { width: 100px; font-size: 12px; }
+            .virality-score-wrap .big-number { font-size: 48px; }
+            .app-header { padding: 10px 16px; }
+            .tab-bar { padding: 0 12px; }
+            .tab-bar button { padding: 10px 14px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <a href="/" class="brand"><span class="brand-icon">&#9900;</span> NeuralPulse Brain Explorer</a>
+        <div class="header-links">
+            <a href="/app/dashboard.html">Dashboard</a>
+            <span class="status-badge running">TRIBE v2 Ready</span>
+        </div>
+    </header>
+
+    <nav class="tab-bar" id="tabBar">
+        <button class="active" data-tab="render">&#9733; Brain Render</button>
+        <button data-tab="input">&#128194; Input</button>
+        <button data-tab="regions">&#128200; Regions</button>
+        <button data-tab="virality">&#128293; Virality</button>
+        <button data-tab="api">&#128187; API</button>
+    </nav>
+
+    <div class="tab-content active" id="tab-render">
+        <div class="control-row">
+            <div class="view-controls" id="viewControls">
+                <button class="active" data-view="lateral">Lateral</button>
+                <button data-view="medial">Medial</button>
+                <button data-view="dorsal">Dorsal</button>
+                <button data-view="ventral">Ventral</button>
+                <button data-view="anterior">Anterior</button>
+                <button data-view="posterior">Posterior</button>
+            </div>
+            <div class="mode-controls" id="modeControls">
+                <button class="active" data-mode="attention">Attention</button>
+                <button data-mode="dopamine">Dopamine</button>
+                <button data-mode="memory">Memory</button>
+                <span id="rotateIndicator" title="Click brain to toggle auto-rotate">Auto-rotate ON</span>
+            </div>
+        </div>
+        <div class="brain-view-wrap" id="brainContainer"></div>
+        <div class="heatmap-legend">
+            <span>0%</span>
+            <div class="gradient"></div>
+            <span>100%</span>
+            <span style="margin-left:16px;font-size:11px;color:var(--text-muted)">Activation intensity</span>
+        </div>
+        <div id="brainStatus" style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-muted)"></div>
+    </div>
+
+    <div class="tab-content" id="tab-input">
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">&#128249;</div>
+            <h3>Upload Video or Audio</h3>
+            <p>MP4, WebM, MOV, MP3, WAV &mdash; max 250 MB</p>
+            <input type="file" id="fileInput" accept="video/mp4,video/webm,video/quicktime,audio/mpeg,audio/wav">
+            <button class="btn btn-primary" id="runPredictionBtn" disabled>Run TRIBEv2 Prediction</button>
+        </div>
+
+        <h3 style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">Or try demo activations</h3>
+        <div class="demo-grid" id="demoGrid">
+            <div class="demo-card" data-demo="social">
+                <div class="demo-icon">&#128247;</div>
+                <h4>Social Reel</h4>
+                <p>Fast-paced, faces, music &mdash; high FFA/TPJ</p>
+            </div>
+            <div class="demo-card" data-demo="nature">
+                <div class="demo-icon">&#127796;</div>
+                <h4>Nature Doc</h4>
+                <p>Slow, scenic &mdash; high V1/V2, low dopamine</p>
+            </div>
+            <div class="demo-card" data-demo="podcast">
+                <div class="demo-icon">&#127908;</div>
+                <h4>Podcast</h4>
+                <p>Speech-driven &mdash; high auditory/language</p>
+            </div>
+        </div>
+
+        <div id="inputStatus" style="margin-top:16px"></div>
+    </div>
+
+    <div class="tab-content" id="tab-regions">
+        <div class="control-row" style="justify-content:space-between">
+            <h3 style="font-size:15px;color:var(--text-secondary)">Sorted by activation strength</h3>
+            <select id="regionFilter" style="background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-secondary);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;font-family:var(--font)">
+                <option value="all">All regions</option>
+                <option value="attention">Attention</option>
+                <option value="dopamine">Dopamine</option>
+                <option value="memory">Memory</option>
+            </select>
+        </div>
+        <div class="regions-list" id="regionsList"></div>
+    </div>
+
+    <div class="tab-content" id="tab-virality">
+        <div class="virality-score-wrap">
+            <div class="big-number" id="viralityScore">78</div>
+            <div class="label">Composite Virality Score</div>
+            <div class="sub-label">Derived from FFA &middot; TPJ &middot; Amygdala &middot; A1 &middot; MT/V1 &middot; DMN</div>
+        </div>
+        <div class="demographics" id="demoStats"></div>
+        <h3 style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">Factor Breakdown</h3>
+        <div class="virality-breakdown" id="viralityBreakdown"></div>
+    </div>
+
+    <div class="tab-content" id="tab-api">
+        <div class="api-box">
+            <div class="api-header">
+                <span>tribev2/demo_utils.py</span>
+                <span class="lang">Python 3.12+</span>
+            </div>
+            <pre><code><span class="cm"># Load pretrained TRIBE v2 from HuggingFace and predict brain responses</span>
+<span class="kw">from</span> tribev2 <span class="kw">import</span> <span class="fn">TribeModel</span>
+
+<span class="cm"># 1. Load the model (downloads weights on first run)</span>
+model = <span class="fn">TribeModel.from_pretrained</span>(
+    <span class="str">"facebook/tribev2"</span>,
+    cache_folder=<span class="str">"./cache"</span>,
+    device=<span class="str">"cpu"</span>,             <span class="cm"># or "cuda" for GPU</span>
+)
+
+<span class="cm"># 2. Build events from your input</span>
+<span class="cm">#    — text is auto-converted to speech and transcribed</span>
+df = model.<span class="fn">get_events_dataframe</span>(
+    video_path=<span class="str">"path/to/video.mp4"</span>   <span class="cm"># or text_path / audio_path</span>
+)
+
+<span class="cm"># 3. Run inference — returns (preds, segments)</span>
+<span class="cm">#    preds:   (n_timesteps, 20484) numpy array of cortical vertex activations</span>
+<span class="cm">#    segments: aligned time segments with metadata</span>
+preds, segments = model.<span class="fn">predict</span>(events=df)
+
+<span class="fn">print</span>(preds.shape)  <span class="cm"># e.g. (12, 20484)</span>
+
+<span class="cm"># 4. Extract ROI-specific scores</span>
+roi_scores = model.<span class="fn">extract_roi_scores</span>(preds, [<span class="str">"V1"</span>, <span class="str">"FFA"</span>, <span class="str">"TPJ"</span>])
+
+<span class="cm"># 5. Generate brain surface plot</span>
+<span class="kw">from</span> tribev2.plotting <span class="kw">import</span> <span class="fn">PlotBrain</span>
+plotter = <span class="fn">PlotBrain</span>(mesh=<span class="str">"fsaverage5"</span>)
+fig = plotter.<span class="fn">plot_surf</span>(preds.mean(axis=<span class="num">0</span>))
+
+<span class="cm"># --- Deploy as API (FastAPI) ---</span>
+<span class="cm"># Install: pip install "tribev2 @ git+https://github.com/facebookresearch/tribev2.git"</span>
+<span class="cm"># Requires: torch, neuralset, neuraltrain, huggingface_hub</span>
+<span class="cm"># Authenticate: huggingface-cli login (needs gated LLaMA 3.2 access)</span>
+</code></pre>
+        </div>
+        <div style="margin-top:16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius);padding:20px">
+            <h3 style="font-size:14px;margin-bottom:8px;color:var(--text-secondary)">Installation</h3>
+            <pre style="background:#0d1117;padding:12px;border-radius:6px;font-size:13px;color:#c9d1d9;overflow-x:auto"><code>pip install "tribev2 @ git+https://github.com/facebookresearch/tribev2.git"
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+huggingface-cli login  # create a read token at https://huggingface.co/settings/tokens</code></pre>
+        </div>
+    </div>
+
+    <script src="js/brain.js"></script>
+    <script>
+        const DEMO_PRESETS = {
+            social: {
+                label: 'Social Reel',
+                scores: { attention: 0.82, dopamine: 0.74, memory: 0.58 },
+                regions: [
+                    { name: 'FFA (Fusiform Face Area)', value: 91, impact: 'attention' },
+                    { name: 'TPJ (Temporo-Parietal Junction)', value: 87, impact: 'attention' },
+                    { name: 'Amygdala', value: 84, impact: 'dopamine' },
+                    { name: 'MT/V5 (Visual Motion)', value: 79, impact: 'attention' },
+                    { name: 'A1 (Primary Auditory)', value: 76, impact: 'attention' },
+                    { name: 'V1/V2 (Primary Visual)', value: 74, impact: 'attention' },
+                    { name: 'VS/NAcc (Ventral Striatum)', value: 72, impact: 'dopamine' },
+                    { name: 'DMN (Default Mode Network)', value: 55, impact: 'memory' },
+                    { name: 'vmPFC', value: 51, impact: 'dopamine' },
+                    { name: 'DLPFC', value: 48, impact: 'memory' },
+                    { name: 'Broca\'s Area', value: 44, impact: 'memory' },
+                    { name: 'SMA (Supplementary Motor)', value: 42, impact: 'dopamine' },
+                ],
+                virality: 91,
+                factors: [
+                    { label: 'Face Engagement (FFA/TPJ)', value: 0.89, color: '#4d6cf5' },
+                    { label: 'Emotional Arousal (Amygdala)', value: 0.84, color: '#f59e0b' },
+                    { label: 'Auditory Hook (A1)', value: 0.76, color: '#10b981' },
+                    { label: 'Visual Salience (MT/V1)', value: 0.79, color: '#8b5cf6' },
+                    { label: 'Narrative Immersion (DMN)', value: 0.55, color: '#ef4444' },
+                ],
+                stats: [
+                    { label: 'Optimal Length', value: '15-30s', sub: 'Short-form' },
+                    { label: 'Best Format', value: 'Vertical', sub: '9:16 aspect' },
+                    { label: 'Peak Retention', value: '2-5s', sub: 'Hook window' },
+                    { label: 'Target Audience', value: 'Gen Z/Mill', sub: '18-35' },
+                ],
+            },
+            nature: {
+                label: 'Nature Doc',
+                scores: { attention: 0.71, dopamine: 0.35, memory: 0.62 },
+                regions: [
+                    { name: 'V1/V2 (Primary Visual)', value: 88, impact: 'attention' },
+                    { name: 'V3/V4 (Visual Processing)', value: 85, impact: 'attention' },
+                    { name: 'MT/V5 (Visual Motion)', value: 72, impact: 'attention' },
+                    { name: 'DMN (Default Mode Network)', value: 68, impact: 'memory' },
+                    { name: 'PHC (Parahippocampal)', value: 65, impact: 'memory' },
+                    { name: 'HIP (Hippocampus)', value: 61, impact: 'memory' },
+                    { name: 'A1 (Primary Auditory)', value: 58, impact: 'attention' },
+                    { name: 'PCC (Posterior Cingulate)', value: 56, impact: 'memory' },
+                    { name: 'DLPFC', value: 48, impact: 'memory' },
+                    { name: 'FFA (Fusiform Face Area)', value: 38, impact: 'attention' },
+                    { name: 'Amygdala', value: 35, impact: 'dopamine' },
+                    { name: 'VS/NAcc (Ventral Striatum)', value: 30, impact: 'dopamine' },
+                ],
+                virality: 42,
+                factors: [
+                    { label: 'Face Engagement (FFA/TPJ)', value: 0.38, color: '#4d6cf5' },
+                    { label: 'Emotional Arousal (Amygdala)', value: 0.35, color: '#f59e0b' },
+                    { label: 'Auditory Hook (A1)', value: 0.58, color: '#10b981' },
+                    { label: 'Visual Salience (MT/V1)', value: 0.88, color: '#8b5cf6' },
+                    { label: 'Narrative Immersion (DMN)', value: 0.68, color: '#ef4444' },
+                ],
+                stats: [
+                    { label: 'Optimal Length', value: '30-60min', sub: 'Long-form' },
+                    { label: 'Best Format', value: 'Horizontal', sub: '16:9 aspect' },
+                    { label: 'Peak Retention', value: '5-15s', sub: 'Slow burn' },
+                    { label: 'Target Audience', value: 'Gen X/Boom', sub: '35+' },
+                ],
+            },
+            podcast: {
+                label: 'Podcast',
+                scores: { attention: 0.53, dopamine: 0.61, memory: 0.78 },
+                regions: [
+                    { name: 'A1 (Primary Auditory)', value: 92, impact: 'attention' },
+                    { name: 'STG (Superior Temporal Gyrus)', value: 89, impact: 'attention' },
+                    { name: 'Broca\'s Area', value: 85, impact: 'memory' },
+                    { name: 'DMN (Default Mode Network)', value: 81, impact: 'memory' },
+                    { name: 'IFG (Inferior Frontal Gyrus)', value: 78, impact: 'memory' },
+                    { name: 'HIP (Hippocampus)', value: 76, impact: 'memory' },
+                    { name: 'DLPFC', value: 72, impact: 'memory' },
+                    { name: 'PCC (Posterior Cingulate)', value: 68, impact: 'memory' },
+                    { name: 'TPJ (Temporo-Parietal Junction)', value: 64, impact: 'attention' },
+                    { name: 'Amygdala', value: 58, impact: 'dopamine' },
+                    { name: 'VS/NAcc (Ventral Striatum)', value: 55, impact: 'dopamine' },
+                    { name: 'V1/V2 (Primary Visual)', value: 32, impact: 'attention' },
+                ],
+                virality: 56,
+                factors: [
+                    { label: 'Face Engagement (FFA/TPJ)', value: 0.64, color: '#4d6cf5' },
+                    { label: 'Emotional Arousal (Amygdala)', value: 0.58, color: '#f59e0b' },
+                    { label: 'Auditory Hook (A1)', value: 0.92, color: '#10b981' },
+                    { label: 'Visual Salience (MT/V1)', value: 0.32, color: '#8b5cf6' },
+                    { label: 'Narrative Immersion (DMN)', value: 0.81, color: '#ef4444' },
+                ],
+                stats: [
+                    { label: 'Optimal Length', value: '20-60min', sub: 'Long-form' },
+                    { label: 'Best Format', value: 'Audio-first', sub: 'Low visual' },
+                    { label: 'Peak Retention', value: '3-10min', sub: 'Deep dive' },
+                    { label: 'Target Audience', value: '25-54', sub: 'Broad' },
+                ],
+            },
+        };
+
+        let brainViewer = null;
+        let currentDemo = null;
+
+        function initBrainViewer() {
+            if (!document.getElementById('brainContainer')) return;
+            if (!window.THREE) {
+                document.getElementById('brainContainer').innerHTML =
+                    '<div style="text-align:center;padding:80px 20px;color:var(--text-muted)">Loading 3D engine...</div>';
+                const check = () => {
+                    if (window.THREE) {
+                        brainViewer = new BrainViewer('brainContainer');
+                        setupViewControls();
+                        setupModeControls();
+                        loadDemo('social');
+                    } else { setTimeout(check, 200); }
+                };
+                setTimeout(check, 300);
+            } else {
+                brainViewer = new BrainViewer('brainContainer');
+                setupViewControls();
+                setupModeControls();
+                loadDemo('social');
+            }
+        }
+
+        function setupViewControls() {
+            document.querySelectorAll('#viewControls button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#viewControls button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    if (brainViewer) brainViewer.setView(btn.dataset.view);
+                });
+            });
+        }
+
+        function setupModeControls() {
+            document.querySelectorAll('#modeControls button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#modeControls button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    if (brainViewer) {
+                        brainViewer.setMode(btn.dataset.mode);
+                        if (currentDemo) updateRegionList(currentDemo);
+                    }
+                });
+            });
+        }
+
+        function loadDemo(demoKey) {
+            const preset = DEMO_PRESETS[demoKey];
+            if (!preset) return;
+            currentDemo = demoKey;
+
+            document.querySelectorAll('.demo-card').forEach(c => c.style.borderColor = '');
+            const card = document.querySelector(`.demo-card[data-demo="${demoKey}"]`);
+            if (card) card.style.borderColor = 'var(--accent-cyan)';
+
+            if (brainViewer) {
+                brainViewer.loadScores(preset.scores);
+            }
+
+            document.getElementById('brainStatus').textContent =
+                `Loaded: ${preset.label} — Attention ${Math.round(preset.scores.attention * 100)}% · Dopamine ${Math.round(preset.scores.dopamine * 100)}% · Memory ${Math.round(preset.scores.memory * 100)}%`;
+
+            updateRegionList(demoKey);
+            updateVirality(demoKey);
+        }
+
+        function getRegionBarColor(value) {
+            const t = value / 100;
+            if (t < 0.25) return '#7f0000';
+            if (t < 0.5) return '#ff0000';
+            if (t < 0.75) return '#ffa500';
+            return '#ffea00';
+        }
+
+        function updateRegionList(demoKey) {
+            const preset = DEMO_PRESETS[demoKey];
+            if (!preset) return;
+            const filter = document.getElementById('regionFilter').value;
+            let regions = [...preset.regions];
+            if (filter !== 'all') regions = regions.filter(r => r.impact === filter);
+            regions.sort((a, b) => b.value - a.value);
+
+            const container = document.getElementById('regionsList');
+            container.innerHTML = regions.map((r, i) => {
+                const color = getRegionBarColor(r.value);
+                return `<div class="region-row">
+                    <span class="rank">#${i + 1}</span>
+                    <span class="region-name">${r.name}</span>
+                    <div class="bar-wrap"><div class="bar-fill" style="width:${r.value}%;background:${color}"></div></div>
+                    <span class="region-value">${r.value}%</span>
+                    <span class="region-impact ${r.impact}">${r.impact}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function updateVirality(demoKey) {
+            const preset = DEMO_PRESETS[demoKey];
+            if (!preset) return;
+
+            document.getElementById('viralityScore').textContent = preset.virality;
+
+            document.getElementById('demoStats').innerHTML = preset.stats.map(s =>
+                `<div class="demo-stat">
+                    <div class="ds-label">${s.label}</div>
+                    <div class="ds-value">${s.value}</div>
+                    <div class="ds-sub">${s.sub}</div>
+                </div>`
+            ).join('');
+
+            document.getElementById('viralityBreakdown').innerHTML = preset.factors.map(f =>
+                `<div class="virality-factor">
+                    <h4>${f.label}</h4>
+                    <div class="vf-value" style="color:${f.color}">${Math.round(f.value * 100)}%</div>
+                    <div class="vf-bar"><div class="vf-fill" style="width:${f.value * 100}%;background:${f.color}"></div></div>
+                </div>`
+            ).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('#tabBar button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#tabBar button').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+                    if (btn.dataset.tab === 'render' && brainViewer) {
+                        setTimeout(() => {
+                            const r = document.getElementById('brainContainer').getBoundingClientRect();
+                            if (brainViewer.renderer) {
+                                brainViewer.camera.aspect = r.width / r.height;
+                                brainViewer.camera.updateProjectionMatrix();
+                                brainViewer.renderer.setSize(r.width, r.height);
+                            }
+                        }, 50);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.demo-card').forEach(card => {
+                card.addEventListener('click', () => loadDemo(card.dataset.demo));
+            });
+
+            document.getElementById('regionFilter').addEventListener('change', () => {
+                if (currentDemo) updateRegionList(currentDemo);
+            });
+
+            const fileInput = document.getElementById('fileInput');
+            const runBtn = document.getElementById('runPredictionBtn');
+            const uploadArea = document.getElementById('uploadArea');
+
+            fileInput.addEventListener('change', () => {
+                runBtn.disabled = !fileInput.files.length;
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    runBtn.disabled = false;
+                }
+            });
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            runBtn.addEventListener('click', () => {
+                const file = fileInput.files[0];
+                if (!file) return;
+                runBtn.disabled = true;
+                runBtn.textContent = 'Running TRIBEv2...';
+                document.getElementById('inputStatus').innerHTML =
+                    '<div style="text-align:center;padding:20px;color:var(--text-muted)">TRIBE v2 prediction in progress...</div>';
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/api/predict-brain', {
+                    method: 'POST',
+                    body: formData,
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        document.getElementById('inputStatus').innerHTML =
+                            '<div style="text-align:center;padding:20px;color:var(--accent-green)">Prediction complete! Switch to Brain Render tab.</div>';
+                        if (data.scores && brainViewer) {
+                            brainViewer.loadScores(data.scores);
+                            currentDemo = 'custom';
+                            DEMO_PRESETS.custom = {
+                                label: 'Upload Result',
+                                scores: data.scores,
+                                regions: data.regions || [],
+                                virality: data.virality || 50,
+                                factors: data.factors || [],
+                                stats: data.stats || [],
+                            };
+                            updateRegionList('custom');
+                            updateVirality('custom');
+                            document.getElementById('brainStatus').textContent =
+                                `Loaded: ${file.name} — Attention ${Math.round(data.scores.attention * 100)}% · Dopamine ${Math.round(data.scores.dopamine * 100)}% · Memory ${Math.round(data.scores.memory * 100)}%`;
+                        }
+                    } else {
+                        document.getElementById('inputStatus').innerHTML =
+                            `<div style="text-align:center;padding:20px;color:var(--accent-red)">Error: ${data.error || 'Prediction failed'}</div>`;
+                    }
+                }).catch(() => {
+                    document.getElementById('inputStatus').innerHTML =
+                        '<div style="text-align:center;padding:20px;color:var(--accent-orange)">Backend not available. Loading demo instead...</div>';
+                    loadDemo('social');
+                }).finally(() => {
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Run TRIBEv2 Prediction';
+                });
+            });
+
+            initBrainViewer();
+        });
+    </script>
+</body>
+</html>

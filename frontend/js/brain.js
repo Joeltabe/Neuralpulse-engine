@@ -110,14 +110,18 @@ class BrainViewer {
     this.container = document.getElementById(containerId);
     if (!this.container) return;
     this.mesh = null;
+    this.wireMesh = null;
     this.currentMode = 'attention';
     this.tooltipEl = null;
-    this.rotationSpeed = 0.002;
-    this.targetRotation = { x: 0.3, y: -0.5 };
-    this.currentRotation = { x: 0.3, y: -0.5 };
+    this.rotationSpeed = 0.003;
     this.isAnimating = true;
     this.regionData = [];
     this.currentScores = null;
+    this.currentView = 'lateral';
+    this.vertexGroups = [];
+    this.uniqueGroups = [];
+    this.roiGroups = [];
+    this.onHover = null;
     this.init();
   }
 
@@ -128,7 +132,7 @@ class BrainViewer {
 
     this.scene = new THREE.Scene();
 
-    this.camera = new THREE.PerspectiveCamera(35, w / h, 0.1, 10);
+    this.camera = new THREE.PerspectiveCamera(30, w / h, 0.1, 10);
     this.camera.position.set(0, 0, 3.2);
     this.camera.lookAt(0, 0, 0);
 
@@ -138,16 +142,20 @@ class BrainViewer {
     this.renderer.setClearColor(0x000000, 0);
     this.container.appendChild(this.renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0x404060, 0.6);
+    const ambient = new THREE.AmbientLight(0x404068, 0.55);
     this.scene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(1, 1, 2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(1.2, 1.5, 2);
     this.scene.add(dirLight);
 
-    const rimLight = new THREE.DirectionalLight(0x8888ff, 0.4);
-    rimLight.position.set(-1, -0.5, -1);
+    const rimLight = new THREE.DirectionalLight(0x6688ff, 0.35);
+    rimLight.position.set(-1.5, -0.5, -1.5);
     this.scene.add(rimLight);
+
+    const fillLight = new THREE.DirectionalLight(0x8888ff, 0.2);
+    fillLight.position.set(0, -1, 0);
+    this.scene.add(fillLight);
 
     this.loadMesh();
     this.setupTooltip();
@@ -164,9 +172,10 @@ class BrainViewer {
   }
 
   loadMesh() {
+    this.container.classList.add('loading');
     fetch('js/brain_mesh.json')
       .then(r => r.json())
-      .then(data => this.buildMesh(data))
+      .then(data => { this.buildMesh(data); this.container.classList.remove('loading'); })
       .catch(() => {
         this.container.innerHTML = '<div class="brain-error">Could not load brain mesh</div>';
       });
@@ -178,6 +187,7 @@ class BrainViewer {
     const faces = data.faces;
     const groupIds = data.group_ids;
     const uniqueGroups = data.unique_groups;
+    const roiGroups = data.roi_groups || [];
 
     const positions = new Float32Array(verts.length * 3);
     for (let i = 0; i < verts.length; i++) {
@@ -195,10 +205,10 @@ class BrainViewer {
     geo.setIndex(indices);
     geo.computeVertexNormals();
 
-    // Store per-vertex group
     this.vertexGroups = groupIds;
+    this.uniqueGroups = uniqueGroups;
+    this.roiGroups = roiGroups;
 
-    // Build region data
     this.regionData = uniqueGroups.map((name, i) => ({
       name,
       index: i,
@@ -211,42 +221,40 @@ class BrainViewer {
       },
     }));
 
-    // Per-vertex colors (initial: dark blue-purple)
+    this.regionLookup = {};
+    for (let i = 0; i < groupIds.length; i++) {
+      this.regionLookup[i] = this.regionData[groupIds[i]] || this.regionData[0];
+    }
+
     const colors = new Float32Array(verts.length * 3);
     for (let i = 0; i < verts.length; i++) {
-      colors[i * 3] = 0.12;
-      colors[i * 3 + 1] = 0.10;
-      colors[i * 3 + 2] = 0.22;
+      colors[i * 3] = 0.06;
+      colors[i * 3 + 1] = 0.04;
+      colors[i * 3 + 2] = 0.12;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const mat = new THREE.MeshPhongMaterial({
       vertexColors: true,
-      shininess: 30,
+      shininess: 40,
       specular: new THREE.Color(0x222244),
       flatShading: false,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.94,
     });
 
     this.mesh = new THREE.Mesh(geo, mat);
-    this.mesh.rotation.x = this.currentRotation.x;
-    this.mesh.rotation.y = this.currentRotation.y;
     this.scene.add(this.mesh);
 
-    // Wireframe overlay for definition
     const wireMat = new THREE.MeshBasicMaterial({
-      color: 0x444466,
+      color: 0x444477,
       wireframe: true,
       transparent: true,
-      opacity: 0.08,
+      opacity: 0.06,
     });
-    const wireMesh = new THREE.Mesh(geo.clone(), wireMat);
-    wireMesh.rotation.x = this.currentRotation.x;
-    wireMesh.rotation.y = this.currentRotation.y;
-    this.scene.add(wireMesh);
-    this.wireMesh = wireMesh;
+    this.wireMesh = new THREE.Mesh(geo.clone(), wireMat);
+    this.scene.add(this.wireMesh);
 
     if (this.currentScores) {
       this.updateColors(this.currentScores);
@@ -265,14 +273,9 @@ class BrainViewer {
     const mouse = new THREE.Vector2();
     let isDragging = false;
     let prevMouse = { x: 0, y: 0 };
+    let tooltipTimeout = null;
 
-    this.renderer.domElement.addEventListener('mousedown', (e) => {
-      isDragging = false;
-      prevMouse.x = e.clientX;
-      prevMouse.y = e.clientY;
-    });
-
-    this.renderer.domElement.addEventListener('mousemove', (e) => {
+    const onMouseMove = (e) => {
       const dx = e.clientX - prevMouse.x;
       const dy = e.clientY - prevMouse.y;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
@@ -280,7 +283,11 @@ class BrainViewer {
         if (this.mesh) {
           this.mesh.rotation.y += dx * 0.005;
           this.mesh.rotation.x += dy * 0.005;
-          this.mesh.rotation.x = Math.max(-1, Math.min(1, this.mesh.rotation.x));
+          this.mesh.rotation.x = Math.max(-1.2, Math.min(1.2, this.mesh.rotation.x));
+          if (this.wireMesh) {
+            this.wireMesh.rotation.y = this.mesh.rotation.y;
+            this.wireMesh.rotation.x = this.mesh.rotation.x;
+          }
         }
         this.hideTooltip();
       }
@@ -288,30 +295,42 @@ class BrainViewer {
       prevMouse.y = e.clientY;
 
       if (!isDragging && this.mesh) {
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, this.camera);
-        const hits = raycaster.intersectObject(this.mesh);
-        if (hits.length > 0) {
-          this.renderer.domElement.style.cursor = 'pointer';
-          this.showTooltip(hits[0], e.clientX, e.clientY);
-        } else {
-          this.renderer.domElement.style.cursor = 'default';
-          this.hideTooltip();
-        }
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = setTimeout(() => {
+          const rect = this.renderer.domElement.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, this.camera);
+          const hits = raycaster.intersectObject(this.mesh);
+          if (hits.length > 0) {
+            this.renderer.domElement.style.cursor = 'pointer';
+            this.showTooltip(hits[0], e.clientX, e.clientY);
+          } else {
+            this.renderer.domElement.style.cursor = 'default';
+            this.hideTooltip();
+          }
+        }, 30);
       }
+    };
+
+    this.renderer.domElement.addEventListener('mousedown', (e) => {
+      isDragging = false;
+      prevMouse.x = e.clientX;
+      prevMouse.y = e.clientY;
     });
+
+    this.renderer.domElement.addEventListener('mousemove', onMouseMove);
 
     this.renderer.domElement.addEventListener('click', () => {
       if (!isDragging) {
         this.isAnimating = !this.isAnimating;
+        const indicator = document.getElementById('rotateIndicator');
+        if (indicator) indicator.textContent = this.isAnimating ? 'Auto-rotate ON' : 'Auto-rotate OFF';
       }
     });
 
     this.renderer.domElement.addEventListener('mouseleave', () => this.hideTooltip());
 
-    // Touch support for mobile
     let touchStart = { x: 0, y: 0 };
     this.renderer.domElement.addEventListener('touchstart', (e) => {
       const t = e.touches[0];
@@ -327,6 +346,11 @@ class BrainViewer {
       if (this.mesh) {
         this.mesh.rotation.y += dx * 0.005;
         this.mesh.rotation.x += dy * 0.005;
+        this.mesh.rotation.x = Math.max(-1.2, Math.min(1.2, this.mesh.rotation.x));
+        if (this.wireMesh) {
+          this.wireMesh.rotation.y = this.mesh.rotation.y;
+          this.wireMesh.rotation.x = this.mesh.rotation.x;
+        }
       }
       touchStart.x = t.clientX;
       touchStart.y = t.clientY;
@@ -335,32 +359,22 @@ class BrainViewer {
 
   showTooltip(hit, x, y) {
     if (!hit.face) return;
-    const pos = hit.face.a * 3;
+    const vertIdx = hit.face.a;
     const colorAttr = this.mesh.geometry.attributes.color;
     if (!colorAttr) return;
+    const pos = vertIdx * 3;
     const r = colorAttr.array[pos];
     const g = colorAttr.array[pos + 1];
     const b = colorAttr.array[pos + 2];
 
-    // Find closest region by vertex position
-    const vertPos = this.mesh.geometry.attributes.position;
-    const vx = vertPos.array[pos];
-    const vy = vertPos.array[pos + 1];
-    const vz = vertPos.array[pos + 2];
-
-    // Determine which group this vertex belongs to
-    const score = Math.max(r, g, b);
-    const mode = this.currentMode;
-    const intensity = score;
-
-    // Find the region
-    const closest = this.findClosestRegion(vx, vy, vz);
-    const exp = closest ? closest.explanation : null;
-
+    const intensity = Math.max(r, g, b);
+    const region = this.regionLookup[vertIdx];
+    if (!region) return;
+    const exp = region.explanation;
     if (!exp) return;
 
     const pct = Math.round(intensity * 100);
-    const impactColor = intensity > 0.5 ? '#4ade80' : intensity > 0.25 ? '#fbbf24' : '#f87171';
+    const impactColor = intensity > 0.6 ? '#4ade80' : intensity > 0.3 ? '#fbbf24' : '#f87171';
 
     this.tooltipEl.innerHTML = `
       <div class="brain-tip-header">
@@ -396,128 +410,112 @@ class BrainViewer {
     this.tooltipEl.style.top = ty + 'px';
   }
 
-  findClosestRegion(vx, vy, vz) {
-    if (!this.regionData.length) return null;
-    const mesh = this.mesh;
-    if (!mesh) return null;
-
-    // Use vertex position to determine region
-    // Regions are mapped by position in the mesh
-    const pos = mesh.geometry.attributes.position;
-    let minDist = Infinity;
-    let best = this.regionData[0];
-
-    // Sample vertices by group to find closest match
-    const groups = {};
-    for (let i = 0; i < pos.count; i++) {
-      const px = pos.array[i * 3];
-      const py = pos.array[i * 3 + 1];
-      const pz = pos.array[i * 3 + 2];
-      const dist = Math.sqrt((px - vx) ** 2 + (py - vy) ** 2 + (pz - vz) ** 2);
-      if (dist < minDist) {
-        minDist = dist;
-      }
-    }
-
-    // Find by checking position-based heuristics
-    const hemi = vz < 0 ? 'L' : 'R';
-    if (vx > 0.2) {
-      const name = `${hemi}_Prefrontal`;
-      const found = this.regionData.find(r => r.name === name);
-      if (found) return found;
-    }
-    if (vx < -0.2) {
-      const name = `${hemi}_Visual Cortex`;
-      const found = this.regionData.find(r => r.name === name);
-      if (found) return found;
-    }
-    if (Math.abs(vy) > 0.35) {
-      const name = `${hemi}_Motor/Somatosensory`;
-      const found = this.regionData.find(r => r.name === name);
-      if (found) return found;
-    }
-    if (Math.abs(vx) < 0.15 && vy < -0.1) {
-      const name = `${hemi}_Default Mode`;
-      const found = this.regionData.find(r => r.name === name);
-      if (found) return found;
-    }
-    if (Math.abs(vy) < 0.25 && Math.abs(vz) > 0.2) {
-      const name = `${hemi}_Temporal`;
-      const found = this.regionData.find(r => r.name === name);
-      if (found) return found;
-    }
-    if (Math.abs(vx) < 0.25 && vy < -0.15) {
-      const name = `${hemi}_Parietal`;
-      const found = this.regionData.find(r => r.name === name);
-      if (found) return found;
-    }
-
-    return this.regionData.find(r => r.name.startsWith(hemi)) || best;
-  }
-
   hideTooltip() {
     if (this.tooltipEl) this.tooltipEl.style.display = 'none';
+  }
+
+  heatmapColor(score) {
+    const t = Math.max(0, Math.min(1, score));
+    let r, g, b;
+    if (t < 0.25) {
+      r = t * 4 * 0.5;
+      g = 0;
+      b = 0;
+    } else if (t < 0.5) {
+      r = 0.5 + (t - 0.25) * 4 * 0.5;
+      g = 0;
+      b = 0;
+    } else if (t < 0.75) {
+      r = 1;
+      g = (t - 0.5) * 4;
+      b = 0;
+    } else {
+      r = 1;
+      g = 1;
+      b = (t - 0.75) * 4;
+    }
+    return { r, g, b };
+  }
+
+  getRegionScore(i, scores) {
+    const region = this.regionLookup[i];
+    if (!region) return 0;
+    const impact = region.explanation.impact;
+    const mode = this.currentMode;
+
+    const dimScore = impact === 'attention' ? scores.attention :
+                     impact === 'dopamine' ? scores.dopamine :
+                     scores.memory;
+
+    const modeFactor = impact === mode ? 1.0 : 0.30;
+    const pos = this.mesh.geometry.attributes.position;
+    const px = pos.array[i * 3], py = pos.array[i * 3 + 1], pz = pos.array[i * 3 + 2];
+    const variation = 0.85 + 0.15 * Math.sin(px * 2.7 + py * 3.1 + pz * 1.3 + i * 0.1);
+
+    return Math.min(1, Math.max(0, dimScore * modeFactor * variation));
   }
 
   updateColors(scores) {
     this.currentScores = scores;
     if (!this.mesh) return;
-
     const colorAttr = this.mesh.geometry.attributes.color;
-    const pos = this.mesh.geometry.attributes.position;
     const colors = colorAttr.array;
-    const n = pos.count;
-    const mode = this.currentMode;
-
-    const getRegionScore = (i) => {
-      const px = pos.array[i * 3];
-      const py = pos.array[i * 3 + 1];
-      const pz = pos.array[i * 3 + 2];
-
-      if (mode === 'attention') {
-        if (px < -0.1) return scores.attention * (0.7 + 0.3 * Math.abs(px));
-        if (py < -0.15) return scores.attention * 0.85;
-        return scores.attention * 0.6;
-      } else if (mode === 'dopamine') {
-        if (px > 0.1) return scores.dopamine * (0.7 + 0.3 * px);
-        if (Math.abs(py) > 0.25) return scores.dopamine * 0.8;
-        return scores.dopamine * 0.5;
-      } else {
-        if (Math.abs(pz) > 0.15) return scores.memory * (0.7 + 0.3 * Math.abs(pz));
-        if (py < -0.1) return scores.memory * 0.75;
-        return scores.memory * 0.5;
-      }
-    };
-
+    const n = this.mesh.geometry.attributes.position.count;
     for (let i = 0; i < n; i++) {
-      const score = Math.min(1, Math.max(0, getRegionScore(i)));
-      const base = 0.08;
-      colors[i * 3] = Math.min(1, base + score * 0.85);
-      colors[i * 3 + 1] = Math.min(1, base + score * 0.35);
-      colors[i * 3 + 2] = Math.min(1, base + (1 - score) * 0.5);
+      const score = this.getRegionScore(i, scores);
+      const { r, g, b } = this.heatmapColor(score);
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
     }
     colorAttr.needsUpdate = true;
+    if (this.onHover) this.onHover(scores);
   }
 
   setMode(mode) {
     this.currentMode = mode;
-    if (this.currentScores) {
-      this.updateColors(this.currentScores);
+    if (this.currentScores) this.updateColors(this.currentScores);
+  }
+
+  setView(view) {
+    this.currentView = view;
+    this.isAnimating = false;
+    const views = {
+      lateral: { pos: [0, 0, 3.2], target: [0, 0, 0] },
+      medial: { pos: [0, 0, -3.2], target: [0, 0, 0] },
+      dorsal: { pos: [0, 3.2, 0], target: [0, 0, 0] },
+      ventral: { pos: [0, -3.2, 0], target: [0, 0, 0] },
+      anterior: { pos: [3.2, 0, 0], target: [0, 0, 0] },
+      posterior: { pos: [-3.2, 0, 0], target: [0, 0, 0] },
+    };
+    const v = views[view] || views.lateral;
+    this.camera.position.set(v.pos[0], v.pos[1], v.pos[2]);
+    this.camera.lookAt(v.target[0], v.target[1], v.target[2]);
+
+    if (this.mesh) {
+      this.mesh.rotation.x = 0;
+      this.mesh.rotation.y = 0;
+      if (this.wireMesh) {
+        this.wireMesh.rotation.x = 0;
+        this.wireMesh.rotation.y = 0;
+      }
     }
   }
 
   animate() {
     requestAnimationFrame(() => this.animate());
-
     if (this.isAnimating && this.mesh) {
       this.mesh.rotation.y += this.rotationSpeed;
+      if (this.wireMesh) {
+        this.wireMesh.rotation.y = this.mesh.rotation.y;
+      }
     }
-
-    if (this.mesh) {
-      this.mesh.rotation.x += (this.currentRotation.x - this.mesh.rotation.x) * 0.02;
-    }
-
     this.renderer.render(this.scene, this.camera);
+  }
+
+  loadScores(scores) {
+    this.currentScores = scores;
+    this.updateColors(scores);
   }
 }
 

@@ -3,6 +3,7 @@ import os
 MODEL_CACHE_DIR = os.getenv("TRIBE_CACHE_DIR", "./cache")
 TRIBE_MODEL_NAME = os.getenv("TRIBE_MODEL_NAME", "facebook/tribev2")
 USE_REAL_MODEL = os.getenv("USE_REAL_TRIBE", "false").lower() == "true"
+TRIBE_API_URL = os.getenv("TRIBE_API_URL", "https://thesilenthowler029-tribe-v2-api.hf.space")
 DEVICE = os.getenv("DEVICE", "cpu")
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 
