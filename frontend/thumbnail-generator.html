@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NeuralPulse — Thumbnail Generator</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --touch-target: 44px;
+            --mobile-nav-height: 64px;
+            --side-panel-width: 260px;
+        }
+
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        .side-panel {
+            width: var(--side-panel-width);
+            background: rgba(12, 12, 36, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 50;
+            overflow-y: auto;
+        }
+        .side-panel .nav-brand { margin-bottom: 24px; }
+        .side-panel .token-banner {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 20px 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            backdrop-filter: blur(8px);
+        }
+        .side-panel .token-banner .balance { font-size: 30px; font-weight: 800; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .side-panel .token-banner .label { font-size: 12px; color: var(--text-muted); }
+        .side-panel .token-banner .buy-link {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 18px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .side-panel .token-banner .buy-link:hover { box-shadow: 0 0 20px rgba(77, 108, 245, 0.4); }
+        .side-panel .nav-links-side {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+        .side-panel .nav-links-side a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+            min-height: var(--touch-target);
+        }
+        .side-panel .nav-links-side a:hover, .side-panel .nav-links-side a.active {
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--accent-cyan);
+        }
+        .side-panel .user-section {
+            margin-top: auto;
+            border-top: 1px solid var(--glass-border);
+            padding-top: 16px;
+        }
+        .side-panel .user-section .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .side-panel .user-section .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: white;
+            box-shadow: 0 0 16px rgba(0, 212, 255, 0.3);
+        }
+        .side-panel .user-section .user-name { font-size: 14px; font-weight: 600; }
+        .side-panel .user-section .user-email { font-size: 12px; color: var(--text-muted); }
+        .side-panel .user-section .logout-btn {
+            width: 100%; padding: 8px; background: transparent;
+            border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+            color: var(--text-muted); font-size: 13px; cursor: pointer;
+            font-family: var(--font); transition: var(--transition);
+        }
+        .side-panel .user-section .logout-btn:hover { color: var(--accent-red); border-color: rgba(239,68,68,0.3); }
+
+        .main-content {
+            margin-left: var(--side-panel-width);
+            flex: 1;
+            padding: 24px 32px;
+            min-height: 100vh;
+            width: calc(100% - var(--side-panel-width));
+        }
+
+        .gen-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .gen-header h1 {
+            font-size: clamp(28px, 4vw, 38px);
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan) 40%, var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gen-header p { color: var(--text-secondary); font-size: 16px; max-width: 600px; margin: 0 auto; }
+
+        .prompt-section {
+            max-width: 800px;
+            margin: 0 auto 40px;
+        }
+        .prompt-section .prompt-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .prompt-section .prompt-label label {
+            font-size: 14px; font-weight: 600; color: var(--text-secondary);
+        }
+        .prompt-section .prompt-label .token-count {
+            font-size: 12px; color: var(--text-muted);
+        }
+        .prompt-section textarea {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(8, 8, 26, 0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font);
+            font-size: 15px;
+            resize: vertical;
+            min-height: 100px;
+            transition: var(--transition);
+            line-height: 1.6;
+        }
+        .prompt-section textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+        .prompt-section textarea::placeholder { color: var(--text-muted); }
+
+        .preset-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 16px 0 24px;
+        }
+        .preset-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            background: rgba(16, 16, 40, 0.4);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font);
+        }
+        .preset-btn:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.06);
+        }
+
+        .gen-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .gen-actions .btn {
+            padding: 14px 36px;
+            font-size: 16px;
+            border-radius: 12px;
+        }
+        .gen-actions .btn-primary {
+            box-shadow: 0 4px 30px rgba(77, 108, 245, 0.4);
+        }
+        .gen-actions .model-count {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .model-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            justify-content: center;
+        }
+        .model-chip {
+            padding: 8px 18px;
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            background: rgba(16, 16, 40, 0.4);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .model-chip .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block;
+        }
+        .model-chip:hover { border-color: var(--glass-border-hover); color: var(--text-primary); }
+        .model-chip.active {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--accent-cyan);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+            margin-top: 32px;
+        }
+
+        .model-card {
+            background: rgba(16, 16, 40, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: var(--transition);
+            box-shadow: var(--shadow-glass);
+            position: relative;
+        }
+        .model-card:hover {
+            border-color: var(--glass-border-hover);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-card), var(--neon-glow-strong);
+        }
+        .model-card .card-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .model-card .card-header .model-name {
+            font-size: 16px; font-weight: 700;
+        }
+        .model-card .card-header .model-provider {
+            font-size: 11px; color: var(--text-muted);
+        }
+        .model-card .card-header .model-badge {
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .model-card .thumbnail-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: linear-gradient(135deg, rgba(0,0,0,0.5), rgba(16,16,40,0.8));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .model-card .thumbnail-wrap .placeholder {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 20px;
+        }
+        .model-card .thumbnail-wrap .placeholder .big-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            display: block;
+            opacity: 0.3;
+        }
+        .model-card .thumbnail-wrap .placeholder .loading-dots {
+            display: inline-flex;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .model-card .thumbnail-wrap .placeholder .loading-dots span {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent-cyan);
+            animation: dotPulse 1.4s ease-in-out infinite;
+        }
+        .model-card .thumbnail-wrap .placeholder .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .model-card .thumbnail-wrap .placeholder .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        .model-card .thumbnail-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .model-card .neural-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .model-card .neural-strip .ns-item {
+            padding: 10px 8px;
+            text-align: center;
+        }
+        .model-card .neural-strip .ns-item .ns-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .model-card .neural-strip .ns-item .ns-value {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .model-card .neural-strip .ns-item .ns-bar {
+            height: 3px;
+            border-radius: 2px;
+            margin-top: 4px;
+            background: rgba(255,255,255,0.05);
+            overflow: hidden;
+        }
+        .model-card .neural-strip .ns-item .ns-bar .ns-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.8s ease;
+        }
+
+        .model-card .engagement-forecast {
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .model-card .engagement-forecast .ef-label {
+            color: var(--text-secondary);
+        }
+        .model-card .engagement-forecast .ef-value {
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 15, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-overlay .gen-status {
+            text-align: center;
+        }
+        .loading-overlay .gen-status h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        .loading-overlay .gen-status p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .loading-overlay .gen-progress {
+            width: 320px;
+            max-width: 80vw;
+        }
+        .loading-overlay .gen-progress .progress-track {
+            width: 100%;
+            height: 4px;
+            background: var(--glass-border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .loading-overlay .gen-progress .progress-track .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .loading-overlay .gen-progress .progress-models {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 16px;
+        }
+        .loading-overlay .gen-progress .progress-models .pm-item {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            background: rgba(0, 212, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+        .loading-overlay .gen-progress .progress-models .pm-item.done {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        .loading-overlay .gen-progress .progress-models .pm-item.active {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .tab-bar {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(12, 12, 36, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            z-index: 100;
+            padding: 4px 0;
+            padding-bottom: env(safe-area-inset-bottom, 4px);
+            justify-content: space-around;
+        }
+        .tab-bar a {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 6px 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 10px;
+            font-weight: 500;
+            min-width: var(--touch-target);
+            min-height: var(--touch-target);
+            justify-content: center;
+            transition: var(--transition);
+            border-radius: var(--radius-sm);
+        }
+        .tab-bar a .tab-icon { font-size: 20px; }
+        .tab-bar a.active { color: var(--accent-cyan); }
+        .tab-bar a:hover { color: var(--text-primary); }
+
+        .model-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+            padding: 0 20px 20px;
+        }
+        .model-detail-item {
+            padding: 8px 12px;
+            background: rgba(8, 8, 26, 0.3);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--glass-border);
+        }
+        .model-detail-item .mdi-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .model-detail-item .mdi-value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .side-panel { display: none; }
+            .main-content {
+                margin-left: 0; width: 100%;
+                padding: 16px;
+                padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+            }
+            .tab-bar { display: flex; }
+            .results-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .main-content { padding: 12px; }
+            .gen-actions { flex-direction: column; }
+            .gen-actions .btn { width: 100%; }
+            .model-selector { gap: 4px; }
+            .model-chip { font-size: 11px; padding: 6px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="insufficientTokens" class="insufficient-tokens-overlay" style="display:none">
+        <div class="insufficient-tokens-modal">
+            <h3>&#9888; Insufficient Tokens</h3>
+            <p id="insufficientMsg">You don't have enough tokens for thumbnail generation.</p>
+            <button class="btn btn-primary" onclick="window.location.href='/app/pricing.html'">Buy Tokens</button>
+            <button class="btn btn-outline" onclick="document.getElementById('insufficientTokens').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <div class="app-layout">
+        <aside class="side-panel">
+            <div class="nav-brand">
+                <span class="brand-icon">&#9900;</span>
+                <span class="brand-text">NeuralPulse</span>
+            </div>
+            <div class="token-banner">
+                <div class="balance" id="sideBalance">0</div>
+                <div class="label">Tokens Available</div>
+                <a href="/app/pricing.html" class="buy-link">Buy More</a>
+            </div>
+            <div class="nav-links-side">
+                <a href="/app/dashboard.html"><span>&#128202;</span> Analyze</a>
+                <a href="/app/dashboard.html#ab-test"><span>&#9878;</span> A/B Test</a>
+                <a href="/app/brain-explorer.html"><span>&#129504;</span> Brain Explorer</a>
+                <a href="/app/thumbnail-generator.html" class="active"><span>&#128247;</span> Thumbnails</a>
+                <a href="/app/thumbnail-history.html"><span>&#128214;</span> History</a>
+                <a href="/app/pricing.html"><span>&#128176;</span> Pricing</a>
+            </div>
+            <div class="user-section">
+                <div class="user-info">
+                    <div class="user-avatar" id="sideAvatar">D</div>
+                    <div>
+                        <div class="user-name" id="sideName">User</div>
+                        <div class="user-email" id="sideEmail">user@email.com</div>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="gen-header">
+                <h1>&#128247; AI Thumbnail Generator</h1>
+                <p>Generate stunning, TRIBE v2-optimized thumbnails using 5 state-of-the-art image models. Each thumbnail is analyzed for neural engagement.</p>
+            </div>
+
+            <div class="prompt-section">
+                <div class="prompt-label">
+                    <label>Thumbnail Description</label>
+                    <span class="token-count" id="promptTokenCount">0 characters</span>
+                </div>
+                <textarea id="promptInput" placeholder="Describe the thumbnail you want to generate. Be specific about composition, colors, mood, subjects, and text elements...&#10;&#10;Example: 'A cinematic YouTube thumbnail of a futuristic city skyline at sunset with neon purple and cyan lights, a glowing central tower, and bold white text 'THE FUTURE IS NOW' across the bottom third'"></textarea>
+                <div class="preset-grid">
+                    <button class="preset-btn" data-prompt="A cinematic YouTube thumbnail of a futuristic city at night with neon cyan and purple lights, flying cars, and a mysterious figure in silhouette in the foreground. Bold white text 'THE FUTURE IS NOW' across bottom.">Futuristic City</button>
+                    <button class="preset-btn" data-prompt="A vibrant tech product thumbnail showing a sleek smartphone floating in mid-air with holographic UI elements radiating around it. Dark background with blue and purple gradient lighting. Text 'REVOLUTIONARY' in bold.">Tech Product</button>
+                    <button class="preset-btn" data-prompt="An intense gaming thumbnail with a warrior character holding a glowing sword, dramatic lighting, particle effects, fire in the background. High contrast orange and blue color scheme. Text 'EPIC BATTLE' in bold impact font.">Gaming</button>
+                    <button class="preset-btn" data-prompt="A professional business thumbnail of a confident speaker presenting on a large screen with data charts and graphs. Warm dramatic lighting. Clean modern aesthetic. Text 'GROW YOUR BUSINESS' in clean sans-serif.">Business</button>
+                    <button class="preset-btn" data-prompt="A stunning travel thumbnail of an exotic tropical beach at golden hour, crystal clear water, palm trees framing the shot, a lone traveler on the sand. Warm golden lighting. Text 'PARADISE FOUND' in elegant serif.">Travel</button>
+                </div>
+                <div style="margin-top:12px;display:grid;gap:10px;max-width:800px;">
+                    <label style="font-size:13px;color:var(--text-secondary);font-weight:600">Negative Prompt (optional)</label>
+                    <textarea id="negativePrompt" placeholder="Things to avoid: (e.g. low-res, text artifacts, watermarks, extra limbs)" style="min-height:60px;padding:12px;background:rgba(8,8,26,0.5);border:1px solid var(--glass-border);border-radius:8px;color:var(--text-primary);"></textarea>
+
+                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <label style="font-size:13px;color:var(--text-secondary);font-weight:600">Guidance Scale</label>
+                            <input id="guidanceInput" type="range" min="1" max="20" step="0.1" value="7.5" style="width:220px">
+                            <span id="guidanceValue" style="font-weight:700;color:var(--accent-cyan);margin-left:6px">7.5</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <label style="font-size:13px;color:var(--text-secondary);font-weight:600">Steps</label>
+                            <input id="stepsInput" type="number" min="1" max="200" step="1" value="35" style="width:86px;padding:8px;border-radius:8px;border:1px solid var(--glass-border);background:rgba(8,8,26,0.5);color:var(--text-primary)">
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;">
+                        <div>
+                            <label style="font-size:13px;color:var(--text-secondary);font-weight:600">Style Preset</label>
+                            <select id="stylePreset" style="margin-left:8px;padding:8px;border-radius:8px;border:1px solid var(--glass-border);background:rgba(8,8,26,0.5);color:var(--text-primary);">
+                                <option value="auto">Auto</option>
+                                <option value="cinematic">Cinematic</option>
+                                <option value="photorealistic">Photorealistic</option>
+                                <option value="bold-text">Bold Text</option>
+                                <option value="minimal">Minimal</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <input type="checkbox" id="applyModelPresets" checked />
+                            <label for="applyModelPresets" style="font-size:13px;color:var(--text-secondary);">Apply per-model presets</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="model-selector" id="modelSelector">
+                    <div class="model-chip active" data-model="flux1-dev"><span class="dot" style="background:#4d6cf5"></span>FLUX.1-dev</div>
+                    <div class="model-chip active" data-model="sd35-large"><span class="dot" style="background:#8b5cf6"></span>SD 3.5 Large</div>
+                    <div class="model-chip active" data-model="qwen-image"><span class="dot" style="background:#10b981"></span>Qwen-Image</div>
+                    <div class="model-chip active" data-model="qwen-image-edit"><span class="dot" style="background:#f59e0b"></span>Qwen-Image-Edit</div>
+                    <div class="model-chip active" data-model="cosmos3-t2i"><span class="dot" style="background:#ef4444"></span>Cosmos3-T2I</div>
+                </div>
+                <div class="gen-actions">
+                    <button class="btn btn-primary" id="generateBtn">&#9889; Generate Thumbnails</button>
+                    <button class="btn btn-outline" id="compareBtn" style="display:none">&#9878; Compare All</button>
+                    <span class="model-count" id="modelCount">5 models selected &middot; 15 tokens</span>
+                </div>
+            </div>
+
+            <div id="results" class="results" style="display:none">
+                <div class="section-header">
+                    <h1>Generated Thumbnails</h1>
+                    <p id="promptDisplay">Prompt: <span id="promptText"></span></p>
+                </div>
+                <div id="comparisonChart" class="chart-card full" style="margin-bottom:32px">
+                    <h3>Neural Engagement Comparison</h3>
+                    <canvas id="engagementChart" height="200"></canvas>
+                </div>
+                <div class="results-grid" id="resultsGrid"></div>
+                <div class="history-link-section" style="text-align:center;margin-top:32px">
+                    <a href="/app/thumbnail-history.html" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:linear-gradient(135deg,rgba(0,212,255,0.15),rgba(139,92,246,0.15));border:1px solid rgba(0,212,255,0.25);border-radius:12px;color:var(--accent-cyan);text-decoration:none;font-size:14px;font-weight:600;transition:var(--transition);backdrop-filter:blur(8px)">
+                        <span>&#128214;</span> View Thumbnail History
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <nav class="tab-bar">
+        <a href="/app/dashboard.html"><span class="tab-icon">&#128202;</span> Analyze</a>
+        <a href="/app/thumbnail-generator.html" class="active"><span class="tab-icon">&#128247;</span> Create</a>
+        <a href="/app/thumbnail-history.html"><span class="tab-icon">&#128214;</span> History</a>
+        <a href="/app/brain-explorer.html"><span class="tab-icon">&#129504;</span> Brain</a>
+        <a href="/app/pricing.html"><span class="tab-icon">&#128176;</span> Pricing</a>
+    </nav>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="gen-status">
+            <h3>&#128247; Generating Thumbnails</h3>
+            <p>Running neural-optimized generation across selected models...</p>
+        </div>
+        <div class="gen-progress">
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-models" id="progressModels"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const MODEL_COLORS = {
+            'flux1-dev': '#4d6cf5',
+            'sd35-large': '#8b5cf6',
+            'qwen-image': '#10b981',
+            'qwen-image-edit': '#f59e0b',
+            'cosmos3-t2i': '#ef4444',
+        };
+        const MODEL_NAMES = {
+            'flux1-dev': 'FLUX.1-dev',
+            'sd35-large': 'Stable Diffusion 3.5 Large',
+            'qwen-image': 'Qwen-Image',
+            'qwen-image-edit': 'Qwen-Image-Edit',
+            'cosmos3-t2i': 'Cosmos3-Text2Image',
+        };
+
+        const STYLE_PRESET_MODIFIERS = {
+            'cinematic': ', cinematic lighting, dramatic color grading, shallow depth of field, high contrast',
+            'photorealistic': ', photorealistic, ultra-detailed, realistic lighting, 8k',
+            'bold-text': ', large bold headline text overlay, high contrast typography',
+            'minimal': ', minimal composition, clean background, simple color palette',
+        };
+
+        const MODEL_DEFAULTS = {
+            'flux1-dev': { guidance: 10.0, steps: 45 },
+            'sd35-large': { guidance: 8.0, steps: 40 },
+            'qwen-image': { guidance: 7.0, steps: 30 },
+            'qwen-image-edit': { guidance: 6.5, steps: 28 },
+            'cosmos3-t2i': { guidance: 9.0, steps: 42 },
+        };
+
+        function getToken() { return localStorage.getItem('neuralpulse_token'); }
+        function getUser() {
+            try { return JSON.parse(localStorage.getItem('neuralpulse_user') || '{}'); }
+            catch { return {}; }
+        }
+
+        let charts = {};
+        let generatedResults = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/app/login.html';
+                return;
+            }
+            initSidebar();
+            loadBalance();
+            initPresets();
+            initModelSelector();
+            initGenerate();
+            initPromptCounter();
+            initGuidanceControls();
+        });
+
+        function initGuidanceControls() {
+            const guidance = document.getElementById('guidanceInput');
+            const display = document.getElementById('guidanceValue');
+            if (!guidance || !display) return;
+            guidance.addEventListener('input', () => { display.textContent = guidance.value; });
+        }
+
+        function initSidebar() {
+            const user = getUser();
+            if (user.name) {
+                document.getElementById('sideAvatar').textContent = user.name.charAt(0).toUpperCase();
+                document.getElementById('sideName').textContent = user.name;
+                document.getElementById('sideEmail').textContent = user.email || '';
+            }
+        }
+
+        async function loadBalance() {
+            const token = getToken();
+            if (!token) return;
+            try {
+                const res = await fetch(API_BASE + '/billing/balance', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('sideBalance').textContent = data.balance || 0;
+                }
+            } catch {}
+        }
+
+        function initPromptCounter() {
+            const input = document.getElementById('promptInput');
+            input.addEventListener('input', () => {
+                const len = input.value.length;
+                document.getElementById('promptTokenCount').textContent = len + ' characters';
+            });
+        }
+
+        function initPresets() {
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const input = document.getElementById('promptInput');
+                    input.value = btn.dataset.prompt;
+                    input.dispatchEvent(new Event('input'));
+                    input.focus();
+                });
+            });
+        }
+
+        function initModelSelector() {
+            document.querySelectorAll('.model-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    chip.classList.toggle('active');
+                    updateModelCount();
+                });
+            });
+        }
+
+        function updateModelCount() {
+            const active = document.querySelectorAll('.model-chip.active').length;
+            document.getElementById('modelCount').textContent = active + ' models selected &middot; ' + (active * 3) + ' tokens';
+        }
+
+        function getSelectedModels() {
+            return Array.from(document.querySelectorAll('.model-chip.active')).map(c => c.dataset.model);
+        }
+
+        function initGenerate() {
+            document.getElementById('generateBtn').addEventListener('click', generateThumbnails);
+        }
+
+        async function generateThumbnails() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) {
+                document.getElementById('promptInput').focus();
+                document.getElementById('promptInput').style.borderColor = 'var(--accent-red)';
+                setTimeout(() => document.getElementById('promptInput').style.borderColor = '', 2000);
+                return;
+            }
+
+            const models = getSelectedModels();
+            if (!models.length) {
+                showToast('Select at least one model', 'error');
+                return;
+            }
+
+            const overlay = document.getElementById('loadingOverlay');
+            const progressFill = document.getElementById('progressFill');
+            const progressModels = document.getElementById('progressModels');
+            overlay.classList.add('active');
+            progressFill.style.width = '0%';
+
+            progressModels.innerHTML = models.map((m, i) =>
+                `<span class="pm-item" data-idx="${i}" data-model="${m}">${MODEL_NAMES[m] || m}</span>`
+            ).join('');
+
+            try {
+                // apply style preset modifier to prompt
+                const stylePreset = document.getElementById('stylePreset') ? document.getElementById('stylePreset').value : 'auto';
+                let sendPrompt = prompt;
+                if (stylePreset && stylePreset !== 'auto' && STYLE_PRESET_MODIFIERS[stylePreset]) {
+                    sendPrompt = prompt + STYLE_PRESET_MODIFIERS[stylePreset];
+                }
+
+                // if enabled, apply per-model guidance/steps presets
+                const applyModelPresets = document.getElementById('applyModelPresets') && document.getElementById('applyModelPresets').checked;
+                let guidanceVal = parseFloat(document.getElementById('guidanceInput') ? document.getElementById('guidanceInput').value : '7.5');
+                let stepsVal = parseInt(document.getElementById('stepsInput') ? document.getElementById('stepsInput').value : '35', 10);
+                if (applyModelPresets) {
+                    const sel = models;
+                    if (sel && sel.length) {
+                        // average defaults across selected models
+                        let gSum = 0, sSum = 0, count = 0;
+                        sel.forEach(m => {
+                            const d = MODEL_DEFAULTS[m];
+                            if (d) { gSum += d.guidance; sSum += d.steps; count++; }
+                        });
+                        if (count > 0) {
+                            guidanceVal = Math.round((gSum / count) * 10) / 10;
+                            stepsVal = Math.round(sSum / count);
+                            const gInput = document.getElementById('guidanceInput');
+                            const sInput = document.getElementById('stepsInput');
+                            if (gInput) { gInput.value = guidanceVal; }
+                            if (document.getElementById('guidanceValue')) { document.getElementById('guidanceValue').textContent = guidanceVal; }
+                            if (sInput) { sInput.value = stepsVal; }
+                        }
+                    }
+                }
+
+                const res = await fetch(API_BASE + '/thumbnail/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + getToken(),
+                    },
+                    body: JSON.stringify({
+                        prompt: sendPrompt,
+                        prompt_original: prompt,
+                        models,
+                        style_preset: stylePreset,
+                        negative_prompt: document.getElementById('negativePrompt') ? document.getElementById('negativePrompt').value.trim() : '',
+                        guidance_scale: guidanceVal,
+                        num_inference_steps: stepsVal,
+                    }),
+                });
+                const data = await res.json();
+
+                overlay.classList.remove('active');
+
+                if (data.success) {
+                    generatedResults = data.results || [];
+                    displayResults(data);
+                    loadBalance();
+                    if (data.history_id) {
+                        localStorage.setItem('last_thumbnail_history', data.history_id);
+                    }
+                } else {
+                    if (data.error && data.error.includes('Insufficient tokens')) {
+                        document.getElementById('insufficientMsg').textContent = data.error;
+                        document.getElementById('insufficientTokens').style.display = 'flex';
+                    } else {
+                        showToast(data.error || 'Generation failed', 'error');
+                    }
+                }
+            } catch (err) {
+                overlay.classList.remove('active');
+                showToast('Error: ' + err.message, 'error');
+            }
+
+            let pct = 0;
+            const step = 100 / models.length;
+            const interval = setInterval(() => {
+                pct += step * 0.3;
+                if (pct >= 100) { pct = 100; clearInterval(interval); }
+                progressFill.style.width = pct + '%';
+            }, 200);
+
+            const modelItems = progressModels.querySelectorAll('.pm-item');
+            modelItems.forEach((item, i) => {
+                setTimeout(() => {
+                    item.classList.add('active');
+                    progressFill.style.width = ((i + 1) / models.length * 100) + '%';
+                    setTimeout(() => {
+                        item.classList.remove('active');
+                        item.classList.add('done');
+                    }, 600);
+                }, (i + 1) * 1200);
+            });
+        }
+
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            results.style.display = 'block';
+            results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            document.getElementById('promptText').textContent = data.prompt || '';
+
+            const infoBanner = document.getElementById('genInfoBanner') || (() => {
+                const el = document.createElement('div');
+                el.id = 'genInfoBanner';
+                el.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:var(--radius-sm);margin-bottom:24px;font-size:13px;color:var(--text-secondary);';
+                document.getElementById('results').insertBefore(el, document.getElementById('results').querySelector('.chart-card') || document.getElementById('resultsGrid'));
+                return el;
+            })();
+            infoBanner.innerHTML = '<span style="font-size:18px">&#128247;</span> <strong style="color:var(--accent-cyan)">Generated</strong> &mdash; Thumbnails rendered via Pillow';
+
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+
+            const results_data = data.results || [];
+            const model_details = data.model_details || {};
+
+            results_data.forEach((r, idx) => {
+                const modelInfo = model_details[r.model_key] || {};
+                const color = MODEL_COLORS[r.model_key] || '#4d6cf5';
+                const ns = r.neural_scores || {};
+                const attn = (ns.attention_score || ns.attention || 0);
+                const dop = (ns.dopamine_score || ns.dopamine || 0);
+                const mem = (ns.memory_score || ns.memory || 0);
+                const eng = ns.engagement_forecast || ns.overall || 0;
+                const strengths = modelInfo.strengths || [];
+                const bestFor = modelInfo.best_for || [];
+
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                card.style.setProperty('--accent-color', color);
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <div class="model-name" style="color:${color}">${r.model_name}</div>
+                            <div class="model-provider">${modelInfo.provider || ''} &middot; ${modelInfo.params || ''} params</div>
+                        </div>
+                        <span class="model-badge" style="background:${color}20;color:${color};border:1px solid ${color}40">
+                            ${(ns.overall * 100).toFixed(0)}%
+                        </span>
+                    </div>
+                    <div class="thumbnail-wrap" id="thumbWrap_${idx}">
+                        <div class="placeholder">
+                            <span class="big-icon">&#128247;</span>
+                            <div>${r.model_name}</div>
+                            <div style="font-size:11px;margin-top:4px;color:var(--text-muted)">Generated in ${r.generation_time_ms}ms</div>
+                            <div class="loading-dots"><span></span><span></span><span></span></div>
+                        </div>
+                    </div>
+                    <div class="neural-strip">
+                        <div class="ns-item">
+                            <div class="ns-label">Attention</div>
+                            <div class="ns-value" style="color:${color}">${(attn * 100).toFixed(0)}%</div>
+                            <div class="ns-bar"><div class="ns-fill" style="width:${attn * 100}%;background:${color}"></div></div>
+                        </div>
+                        <div class="ns-item">
+                            <div class="ns-label">Dopamine</div>
+                            <div class="ns-value" style="color:${MODEL_COLORS[r.model_key] === '#4d6cf5' ? '#f59e0b' : '#f59e0b'}">${(dop * 100).toFixed(0)}%</div>
+                            <div class="ns-bar"><div class="ns-fill" style="width:${dop * 100}%;background:#f59e0b"></div></div>
+                        </div>
+                        <div class="ns-item">
+                            <div class="ns-label">Memory</div>
+                            <div class="ns-value" style="color:${MODEL_COLORS[r.model_key] === '#4d6cf5' ? '#10b981' : '#10b981'}">${(mem * 100).toFixed(0)}%</div>
+                            <div class="ns-bar"><div class="ns-fill" style="width:${mem * 100}%;background:#10b981"></div></div>
+                        </div>
+                    </div>
+                    <div class="engagement-forecast">
+                        <span class="ef-label">&#9889; TRIBE v2 Engagement Forecast</span>
+                        <span class="ef-value" style="color:${color}">${(eng * 100).toFixed(0)}%</span>
+                    </div>
+                    <div class="model-detail-grid">
+                        <div class="model-detail-item">
+                            <div class="mdi-label">Strengths</div>
+                            <div class="mdi-value">${strengths.slice(0, 2).join(' &middot; ')}</div>
+                        </div>
+                        <div class="model-detail-item">
+                            <div class="mdi-label">Best For</div>
+                            <div class="mdi-value">${bestFor.slice(0, 1).join('')}</div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+
+                setTimeout(() => {
+                    const wrap = document.getElementById('thumbWrap_' + idx);
+                    if (!wrap) return;
+                    const placeholder = wrap.querySelector('.placeholder');
+
+                    const img = document.createElement('img');
+                    img.alt = r.model_name + ' thumbnail';
+                    img.style.transition = 'opacity 0.6s ease';
+                    img.style.opacity = '0';
+
+                    if (data.real_generation && r.image_url && !r.image_url.includes('_stub_')) {
+                        img.src = r.image_url;
+                        img.onerror = () => {
+                            const hue = hashCode(r.model_key + (r.model_name || '')) % 360;
+                            img.src = 'data:image/svg+xml,' + encodeURIComponent(generateThumbnailSVG(data.prompt || '', r.model_name, hue));
+                        };
+                    } else {
+                        const hue = hashCode(r.model_key + (r.model_name || '')) % 360;
+                        img.src = 'data:image/svg+xml,' + encodeURIComponent(generateThumbnailSVG(data.prompt || '', r.model_name, hue));
+                    }
+
+                    img.onload = () => { img.style.opacity = '1'; if (placeholder) placeholder.remove(); };
+                    wrap.appendChild(img);
+                }, 300 + idx * 200);
+            });
+
+            renderComparisonChart(results_data, data.prompt || '');
+            document.getElementById('compareBtn').style.display = 'inline-flex';
+        }
+
+        function hashCode(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
+
+        function generateThumbnailSVG(prompt, modelName, hue) {
+            const lower = (prompt || '').toLowerCase();
+            const words = lower.split(/\s+/);
+
+            const themeKeywords = {
+                anime: { bg: ['#1a0a2e', '#16213e'], accent: '#ff6b35', textColor: '#ffffff', label: 'ANIME' },
+                naruto: { bg: ['#1a0a00', '#2d1f00'], accent: '#ff8c00', textColor: '#ffffff', label: 'NARUTO' },
+                gaming: { bg: ['#0d0015', '#1a0030'], accent: '#ff0040', textColor: '#ffffff', label: 'GAMING' },
+                minecraft: { bg: ['#0a2f0a', '#1a5c1a'], accent: '#44ff44', textColor: '#ffffff', label: 'MINECRAFT' },
+                fortnite: { bg: ['#1a0030', '#2d0050'], accent: '#ff00ff', textColor: '#ffffff', label: 'FORTNITE' },
+                tech: { bg: ['#000a1a', '#001a3d'], accent: '#0088ff', textColor: '#ffffff', label: 'TECH' },
+                business: { bg: ['#0a0a1a', '#1a1a3d'], accent: '#0055ff', textColor: '#ffffff', label: 'BUSINESS' },
+                travel: { bg: ['#001a14', '#003d2d'], accent: '#00d4aa', textColor: '#ffffff', label: 'TRAVEL' },
+                nature: { bg: ['#001a0a', '#003d1a'], accent: '#00ff77', textColor: '#ffffff', label: 'NATURE' },
+                food: { bg: ['#1a0a00', '#3d1a00'], accent: '#ff5500', textColor: '#ffffff', label: 'FOOD' },
+                music: { bg: ['#0a001a', '#1a003d'], accent: '#aa00ff', textColor: '#ffffff', label: 'MUSIC' },
+                fitness: { bg: ['#001a1a', '#003d3d'], accent: '#00ffcc', textColor: '#ffffff', label: 'FITNESS' },
+                news: { bg: ['#000a0a', '#001a1a'], accent: '#ff0000', textColor: '#ffffff', label: 'NEWS' },
+                funny: { bg: ['#1a1a00', '#3d3d00'], accent: '#ffdd00', textColor: '#ffffff', label: 'FUNNY' },
+                scary: { bg: ['#000000', '#0a0a0a'], accent: '#cc0000', textColor: '#ffffff', label: 'SCARY' },
+            };
+
+            let theme = { bg: ['#0a0a1a', '#1a1a3d'], accent: '#4d6cf5', textColor: '#ffffff', label: 'AI' };
+            for (const [kw, t] of Object.entries(themeKeywords)) {
+                if (lower.includes(kw)) { theme = t; break; }
+            }
+
+            const bg1 = theme.bg[0];
+            const bg2 = theme.bg[1];
+            const accent = theme.accent;
+            const textColor = theme.textColor;
+
+            const shortPrompt = (prompt || '').length > 80 ? (prompt || '').substring(0, 77) + '...' : (prompt || '');
+            const promptLines = [];
+            const maxChars = 42;
+            let remaining = shortPrompt;
+            while (remaining.length > 0) {
+                if (remaining.length <= maxChars) { promptLines.push(remaining); break; }
+                let split = remaining.lastIndexOf(' ', maxChars);
+                if (split < maxChars * 0.3) split = maxChars;
+                promptLines.push(remaining.substring(0, split));
+                remaining = remaining.substring(split).trim();
+            }
+
+            const shapes = [];
+            const rng = (seed) => { let s = seed; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; };
+            const rand = rng(hashCode(prompt || '') + 1);
+            for (let i = 0; i < 6; i++) {
+                const cx = 200 + rand() * 880;
+                const cy = 80 + rand() * 300;
+                const r = 40 + rand() * 200;
+                const o = 0.02 + rand() * 0.06;
+                shapes.push(`<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="${r.toFixed(0)}" fill="${accent}" opacity="${o.toFixed(2)}"/>`);
+            }
+
+            const year = new Date().getFullYear();
+            const month = String(new Date().getMonth() + 1).padStart(2, '0');
+            const day = String(new Date().getDate()).padStart(2, '0');
+
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+                <defs>
+                    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${bg1}"/>
+                        <stop offset="100%" style="stop-color:${bg2}"/>
+                    </linearGradient>
+                    <linearGradient id="bar" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:${accent};stop-opacity:0"/>
+                        <stop offset="50%" style="stop-color:${accent};stop-opacity:0.25"/>
+                        <stop offset="100%" style="stop-color:${accent};stop-opacity:0"/>
+                    </linearGradient>
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="shadow">
+                        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.6"/>
+                    </filter>
+                    <clipPath id="safe">
+                        <rect x="40" y="40" width="1200" height="640" rx="16"/>
+                    </clipPath>
+                </defs>
+                <rect width="1280" height="720" fill="url(#bg)"/>
+                ${shapes.join('\n                ')}
+                <rect x="0" y="0" width="1280" height="4" fill="${accent}" opacity="0.3"/>
+                <rect x="0" y="716" width="1280" height="4" fill="${accent}" opacity="0.3"/>
+                <rect x="160" y="80" width="960" height="1" fill="url(#bar)" opacity="0.4"/>
+                <text x="640" y="145" font-family="system-ui,sans-serif" font-size="60" font-weight="900" fill="${accent}" text-anchor="middle" filter="url(#glow)" letter-spacing="4">${theme.label}</text>
+                <text x="640" y="185" font-family="system-ui,sans-serif" font-size="14" fill="${accent}" text-anchor="middle" opacity="0.5" letter-spacing="6">${year} &bull; ${month}.${day}</text>
+                <g filter="url(#shadow)">
+                    <rect x="440" y="280" width="400" height="120" rx="60" fill="${accent}" opacity="0.95"/>
+                    <polygon points="520,310 520,370 600,340" fill="${bg1}"/>
+                </g>
+                <text x="640" y="590" font-family="system-ui,sans-serif" font-size="40" font-weight="800" fill="${textColor}" text-anchor="middle" filter="url(#shadow)">${promptLines[0] || ''}</text>
+                ${promptLines[1] ? `<text x="640" y="635" font-family="system-ui,sans-serif" font-size="32" font-weight="700" fill="${textColor}" text-anchor="middle" opacity="0.9">${promptLines[1]}</text>` : ''}
+                <rect x="80" y="660" width="200" height="32" rx="16" fill="${accent}" opacity="0.15"/>
+                <text x="180" y="681" font-family="system-ui,sans-serif" font-size="11" fill="${accent}" text-anchor="middle" opacity="0.6">${modelName || 'AI Generated'}</text>
+                <rect x="1000" y="660" width="200" height="32" rx="16" fill="rgba(255,255,255,0.06)"/>
+                <text x="1100" y="681" font-family="system-ui,sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.3">NeuralPulse TRIBE v2</text>
+                <rect x="560" y="0" width="160" height="2" fill="${accent}" opacity="0.15"/>
+                <rect x="560" y="718" width="160" height="2" fill="${accent}" opacity="0.15"/>
+            </svg>`;
+        }
+
+        function renderComparisonChart(results, prompt) {
+            const canvas = document.getElementById('engagementChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (charts.engagementChart) charts.engagementChart.destroy();
+
+            const labels = results.map(r => r.model_name);
+            const attnData = results.map(r => (r.neural_scores.attention_score || r.neural_scores.attention || 0) * 100);
+            const dopData = results.map(r => (r.neural_scores.dopamine_score || r.neural_scores.dopamine || 0) * 100);
+            const memData = results.map(r => (r.neural_scores.memory_score || r.neural_scores.memory || 0) * 100);
+            const engData = results.map(r => (r.neural_scores.engagement_forecast || r.neural_scores.overall || 0) * 100);
+
+            charts.engagementChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Attention', 'Dopamine', 'Memory'],
+                    datasets: results.map((r, i) => ({
+                        label: r.model_name,
+                        data: [attnData[i], dopData[i], memData[i]],
+                        backgroundColor: MODEL_COLORS[r.model_key] + '15',
+                        borderColor: MODEL_COLORS[r.model_key],
+                        borderWidth: 2,
+                        pointBackgroundColor: MODEL_COLORS[r.model_key],
+                        pointRadius: 3,
+                    })),
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#9498c7', font: { size: 11 }, padding: 16, usePointStyle: true },
+                        },
+                    },
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(148,152,199,0.12)' },
+                            angleLines: { color: 'rgba(148,152,199,0.12)' },
+                            pointLabels: { color: '#9498c7', font: { size: 12 } },
+                            ticks: { color: '#5c6090', backdropColor: 'transparent', stepSize: 25, callback: v => v + '%' },
+                        },
+                    },
+                },
+            });
+        }
+
+        function showToast(message, type) {
+            const existing = document.querySelector('.toast-notification');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification toast-' + (type || 'info');
+            toast.textContent = message;
+            Object.assign(toast.style, {
+                position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+                background: type === 'error' ? 'rgba(239,68,68,0.95)' : type === 'success' ? 'rgba(16,185,129,0.95)' : 'rgba(100,100,200,0.95)',
+                color: '#fff', padding: '12px 24px', borderRadius: '10px', fontSize: '14px',
+                fontWeight: '600', zIndex: '99999', boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                backdropFilter: 'blur(8px)', maxWidth: '90%', textAlign: 'center',
+            });
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
+        }
+
+        function logout() {
+            localStorage.removeItem('neuralpulse_token');
+            localStorage.removeItem('neuralpulse_user');
+            window.location.href = '/app/login.html';
+        }
+    </script>
+</body>
+</html>

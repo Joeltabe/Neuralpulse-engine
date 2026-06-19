@@ -146,6 +146,19 @@ class AnalysisHistory(Base):
     tokens_used = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+class ThumbnailHistory(Base):
+    __tablename__ = "thumbnail_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    prompt = Column(Text, nullable=False)
+    style_preset = Column(String(50), nullable=True, default="auto")
+    models_used = Column(String(500), nullable=False)
+    results_json = Column(Text, nullable=True)
+    engagement_forecast = Column(Float, nullable=True)
+    tokens_used = Column(Integer, nullable=False, default=15)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 def get_token_cost(media_type: str) -> int:
     costs = {
         "video": 50,
@@ -153,6 +166,7 @@ def get_token_cost(media_type: str) -> int:
         "text": 10,
         "copy": 10,
         "ab_test": 25,
+        "thumbnail": 15,
     }
     return costs.get(media_type, 10)
 
@@ -162,6 +176,7 @@ TOKEN_COSTS = {
     "text": 10,
     "copy": 10,
     "ab_test": 25,
+    "thumbnail": 15,
 }
 
 DEFAULT_PACKAGES = [

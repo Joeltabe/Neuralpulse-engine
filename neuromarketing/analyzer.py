@@ -10,7 +10,7 @@ from .recommendations import RecommendationEngine
 from .models import (
     AnalysisResult, VideoAnalysisResult, AudioAnalysisResult, TextAnalysisResult,
     BrainScores, AttentionScore, DopamineScore, MemoryScore, Recommendation,
-    MediaType
+    MediaType, EmotionTimeline, EmotionalEvent
 )
 from .config import (
     ATTENTION_ROIS, DOPAMINE_ROIS, MEMORY_ROIS,
@@ -24,9 +24,16 @@ logger = logging.getLogger(__name__)
 
 
 class NeuromarketingAnalyzer:
-    def __init__(self, tribe_adapter: TribeAdapter):
+    def __init__(
+        self,
+        tribe_adapter: TribeAdapter,
+        emotion_classifier: Optional[Any] = None,
+        timeline_aligner: Optional[Any] = None,
+    ):
         self.tribe = tribe_adapter
         self.recommendation_engine = RecommendationEngine()
+        self.emotion_classifier = emotion_classifier
+        self.timeline_aligner = timeline_aligner
         self.tribe.initialize()
 
     def analyze_video(self, video_path: str, filename: str = "") -> VideoAnalysisResult:
@@ -50,6 +57,8 @@ class NeuromarketingAnalyzer:
         engagement = self._compute_engagement_curve(
             attention, dopamine, memory, len(predictions)
         )
+
+        emotion_timeline = self._run_emotion_analysis(video_path, duration, timestamp_axis)
 
         attention_dropoffs = self._find_attention_dropoffs(
             attention.temporal_scores, timestamp_axis
@@ -79,7 +88,59 @@ class NeuromarketingAnalyzer:
             keyframes=self._extract_keyframes(predictions, timestamp_axis),
         )
 
+        if emotion_timeline is not None:
+            result.emotion_timeline = emotion_timeline
+
         return result
+
+    def _run_emotion_analysis(
+        self,
+        media_path: str,
+        duration: float,
+        timestamp_axis: List[float],
+    ) -> Optional[EmotionTimeline]:
+        if self.timeline_aligner is None:
+            return None
+        try:
+            result = self.timeline_aligner.analyze(media_path)
+            preds = result["predictions"]
+            labels = result["labels"]
+            events_raw = result.get("events", [])
+
+            events = [
+                EmotionalEvent(**e) if isinstance(e, dict) else e
+                for e in events_raw
+            ]
+
+            confidence = {}
+            if "confidence" in result:
+                for dim, data in result["confidence"].items():
+                    confidence[dim] = {
+                        "mean": data["mean"].tolist() if hasattr(data["mean"], "tolist") else list(data["mean"]),
+                        "std": data["std"].tolist() if hasattr(data["std"], "tolist") else list(data["std"]),
+                    }
+
+            scores = {
+                dim: vals.tolist() if hasattr(vals, "tolist") else list(vals)
+                for dim, vals in preds.items()
+            }
+            labels_out = {
+                dim: list(vals) if isinstance(vals, (list, np.ndarray)) else list(vals)
+                for dim, vals in labels.items()
+            }
+
+            return EmotionTimeline(
+                timestamps=result.get("timestamps", timestamp_axis).tolist()
+                if hasattr(result.get("timestamps"), "tolist")
+                else list(result.get("timestamps", timestamp_axis)),
+                scores=scores,
+                labels=labels_out,
+                events=events,
+                confidence=confidence,
+            )
+        except Exception as e:
+            logger.warning(f"Emotion analysis failed: {e}")
+            return None
 
     def analyze_audio(self, audio_path: str, filename: str = "") -> AudioAnalysisResult:
         logger.info(f"Analyzing audio: {audio_path}")

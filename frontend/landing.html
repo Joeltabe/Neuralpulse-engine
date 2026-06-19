@@ -7,15 +7,12 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <style>
-        :root {
-            --landing-max: 1200px;
-        }
         .landing-nav {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 16px 32px;
-            max-width: var(--landing-max);
+            max-width: 1200px;
             margin: 0 auto;
             width: 100%;
         }
@@ -27,133 +24,312 @@
             font-size: 14px;
             font-weight: 500;
             transition: var(--transition);
+            position: relative;
         }
-        .landing-nav .nav-links a:hover { color: var(--text-primary); }
+        .landing-nav .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--accent-cyan);
+            transition: var(--transition);
+        }
+        .landing-nav .nav-links a:hover { color: var(--accent-cyan); }
+        .landing-nav .nav-links a:hover::after { width: 100%; }
         .landing-nav .nav-cta { display: flex; gap: 8px; align-items: center; }
         .landing-nav .btn { padding: 8px 20px; font-size: 13px; }
+
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
         .landing-hero {
             text-align: center;
-            padding: 100px 24px 60px;
-            max-width: 800px;
+            padding: 140px 24px 80px;
+            max-width: 900px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        .landing-hero .hero-badge {
+            display: inline-block;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            color: var(--accent-cyan);
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: pulseGlow 3s ease-in-out infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.1); }
+            50% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.3); }
         }
         .landing-hero h1 {
-            font-size: clamp(36px, 6vw, 64px);
+            font-size: clamp(40px, 7vw, 72px);
             font-weight: 800;
-            line-height: 1.1;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #e8e9f3 0%, #00d4ff 40%, #8b5cf6 100%);
+            line-height: 1.05;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #e8e9f3 0%, #00d4ff 35%, #8b5cf6 65%, #4d6cf5 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-size: 200% 200%;
+            animation: gradientShift 5s ease infinite;
         }
         .landing-hero p {
-            font-size: clamp(16px, 2vw, 20px);
+            font-size: clamp(17px, 2vw, 22px);
             color: var(--text-secondary);
-            max-width: 600px;
-            margin: 0 auto 36px;
-            line-height: 1.6;
+            max-width: 680px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
         }
-        .landing-hero .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-        .landing-hero .btn { padding: 14px 32px; font-size: 16px; }
+        .landing-hero .hero-cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .landing-hero .btn { padding: 16px 36px; font-size: 16px; border-radius: 12px; }
+        .landing-hero .btn-primary {
+            box-shadow: 0 4px 30px rgba(77, 108, 245, 0.4);
+        }
+        .landing-hero .btn-outline {
+            border-color: rgba(0, 212, 255, 0.3);
+            color: var(--accent-cyan);
+        }
+        .landing-hero .btn-outline:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--accent-cyan);
+        }
+
         .hero-stats {
             display: flex;
             justify-content: center;
-            gap: 48px;
-            margin-top: 48px;
+            gap: 56px;
+            margin-top: 60px;
             flex-wrap: wrap;
+            perspective: 800px;
         }
-        .hero-stat { text-align: center; }
-        .hero-stat .num { font-size: 32px; font-weight: 800; color: var(--accent-cyan); }
-        .hero-stat .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+        .hero-stat {
+            text-align: center;
+            transform-style: preserve-3d;
+            transition: var(--transition);
+        }
+        .hero-stat:hover {
+            transform: translateZ(20px) scale(1.05);
+        }
+        .hero-stat .num {
+            font-size: 40px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-stat .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; letter-spacing: 0.5px; }
 
         .features-section {
-            padding: 80px 24px;
-            max-width: var(--landing-max);
+            padding: 100px 24px;
+            max-width: 1200px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
         .features-section h2 {
             text-align: center;
-            font-size: clamp(28px, 4vw, 40px);
-            margin-bottom: 48px;
+            font-size: clamp(32px, 4vw, 44px);
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .features-section .section-sub {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 17px;
+            margin-bottom: 56px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
         }
         .features-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 24px;
+            perspective: 1200px;
         }
         .feature-card {
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
             border-radius: var(--radius);
-            padding: 32px 24px;
+            padding: 36px 28px;
             text-align: center;
             transition: var(--transition);
+            transform-style: preserve-3d;
+            box-shadow: var(--shadow-glass);
+            position: relative;
+            overflow: hidden;
         }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+            opacity: 0;
+            transition: var(--transition);
+        }
+        .feature-card:hover::before { opacity: 1; }
         .feature-card:hover {
-            border-color: var(--accent-blue);
-            transform: translateY(-4px);
-            box-shadow: var(--shadow);
+            border-color: var(--glass-border-hover);
+            transform: translateY(-8px) rotateX(2deg) scale(1.02);
+            box-shadow: var(--shadow-card), var(--neon-glow-strong);
         }
-        .feature-card .icon { font-size: 40px; margin-bottom: 16px; }
-        .feature-card h3 { font-size: 18px; margin-bottom: 8px; }
-        .feature-card p { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+        .feature-card .icon {
+            font-size: 44px;
+            margin-bottom: 20px;
+            display: inline-block;
+            filter: drop-shadow(0 0 15px rgba(0, 212, 255, 0.3));
+        }
+        .feature-card h3 { font-size: 19px; margin-bottom: 10px; }
+        .feature-card p { color: var(--text-secondary); font-size: 14px; line-height: 1.7; }
 
         .how-it-works {
-            padding: 80px 24px;
-            background: var(--bg-secondary);
+            padding: 100px 24px;
+            position: relative;
+            z-index: 1;
+        }
+        .how-it-works::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0, 212, 255, 0.04), transparent);
+            pointer-events: none;
         }
         .how-it-works-inner {
-            max-width: var(--landing-max);
+            max-width: 1200px;
             margin: 0 auto;
+            position: relative;
         }
-        .how-it-works h2 { text-align: center; font-size: clamp(28px, 4vw, 40px); margin-bottom: 48px; }
+        .how-it-works h2 {
+            text-align: center;
+            font-size: clamp(32px, 4vw, 44px);
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .how-it-works .section-sub {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 17px;
+            margin-bottom: 56px;
+        }
         .steps-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 24px;
+            position: relative;
+        }
+        .steps-grid::before {
+            content: '';
+            position: absolute;
+            top: 32px;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple), var(--accent-blue), var(--accent-cyan));
+            opacity: 0.2;
+            z-index: 0;
         }
         .step-card {
             text-align: center;
             padding: 24px;
+            position: relative;
+            z-index: 1;
         }
         .step-card .step-num {
-            width: 48px;
-            height: 48px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 800;
-            margin: 0 auto 16px;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 30px rgba(77, 108, 245, 0.3);
+            position: relative;
         }
-        .step-card h4 { font-size: 16px; margin-bottom: 8px; }
-        .step-card p { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+        .step-card .step-num::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            animation: pulseRing 2s ease-in-out infinite;
+        }
+        @keyframes pulseRing {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.5; }
+        }
+        .step-card h4 { font-size: 17px; margin-bottom: 10px; }
+        .step-card p { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
 
         .pricing-section {
-            padding: 80px 24px;
-            max-width: var(--landing-max);
+            padding: 100px 24px;
+            max-width: 1200px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
-        .pricing-section h2 { text-align: center; font-size: clamp(28px, 4vw, 40px); margin-bottom: 48px; }
+        .pricing-section h2 {
+            text-align: center;
+            font-size: clamp(32px, 4vw, 44px);
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .pricing-section .section-sub {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 17px;
+            margin-bottom: 48px;
+        }
         .pricing-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 24px;
+            perspective: 1200px;
         }
         .pricing-card {
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
             border-radius: var(--radius);
-            padding: 32px 24px;
+            padding: 36px 28px;
             text-align: center;
             transition: var(--transition);
             position: relative;
+            transform-style: preserve-3d;
+            box-shadow: var(--shadow-glass);
         }
         .pricing-card.popular {
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 30px rgba(77,108,245,0.15);
+            border-color: var(--accent-cyan);
+            box-shadow: var(--shadow-card), 0 0 50px rgba(0, 212, 255, 0.15);
         }
         .pricing-card.popular::before {
             content: 'Most Popular';
@@ -161,50 +337,109 @@
             top: -12px;
             left: 50%;
             transform: translateX(-50%);
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
             color: white;
-            padding: 4px 16px;
+            padding: 4px 18px;
             border-radius: 12px;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
         }
-        .pricing-card:hover { border-color: var(--accent-blue); transform: translateY(-4px); }
+        .pricing-card:hover {
+            border-color: var(--glass-border-hover);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: var(--shadow-card), var(--neon-glow-strong);
+        }
         .pricing-card .pkg-name { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-        .pricing-card .pkg-price { font-size: 42px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 4px; }
+        .pricing-card .pkg-price { font-size: 46px; font-weight: 800; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px; }
         .pricing-card .pkg-tokens { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
         .pricing-card .pkg-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
-        .pricing-card .btn { width: 100%; padding: 12px; font-size: 15px; }
+        .pricing-card .btn { width: 100%; padding: 12px; font-size: 15px; border-radius: 10px; }
 
         .cta-section {
             text-align: center;
-            padding: 80px 24px;
-            background: linear-gradient(135deg, rgba(77,108,245,0.1), rgba(139,92,246,0.1));
+            padding: 100px 24px;
+            position: relative;
+            z-index: 1;
         }
-        .cta-section h2 { font-size: clamp(28px, 4vw, 40px); margin-bottom: 16px; }
-        .cta-section p { color: var(--text-secondary); font-size: 18px; margin-bottom: 32px; }
-        .cta-section .btn { padding: 14px 40px; font-size: 16px; }
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(77, 108, 245, 0.1), transparent);
+        }
+        .cta-section .cta-inner {
+            max-width: 700px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .cta-section h2 { font-size: clamp(32px, 4vw, 44px); margin-bottom: 16px; }
+        .cta-section p { color: var(--text-secondary); font-size: 18px; margin-bottom: 36px; }
+        .cta-section .btn { padding: 16px 44px; font-size: 17px; border-radius: 12px; }
 
         .landing-footer {
-            padding: 40px 24px;
+            padding: 48px 24px;
             text-align: center;
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid var(--glass-border);
+            position: relative;
+            z-index: 1;
         }
-        .landing-footer .footer-links { display: flex; gap: 24px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
-        .landing-footer .footer-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; }
-        .landing-footer .footer-links a:hover { color: var(--text-secondary); }
+        .landing-footer .footer-links { display: flex; gap: 28px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .landing-footer .footer-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; transition: var(--transition); }
+        .landing-footer .footer-links a:hover { color: var(--accent-cyan); }
         .landing-footer .copyright { color: var(--text-muted); font-size: 12px; }
 
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: bounceDown 2s ease-in-out infinite;
+        }
+        @keyframes bounceDown {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(8px); }
+        }
+        .scroll-indicator .line {
+            width: 1px;
+            height: 30px;
+            background: linear-gradient(to bottom, var(--accent-cyan), transparent);
+        }
+
         @media (max-width: 900px) {
-            .features-grid, .pricing-grid, .steps-grid { grid-template-columns: 1fr; }
-            .hero-stats { gap: 24px; }
+            .features-grid, .pricing-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+            .steps-grid::before { display: none; }
+            .hero-stats { gap: 32px; }
             .landing-nav { flex-wrap: wrap; gap: 12px; justify-content: center; }
             .landing-nav .nav-links { display: none; }
-            .landing-hero { padding: 60px 16px 40px; }
+            .landing-hero { padding: 100px 16px 60px; }
+            .hero-stat .num { font-size: 32px; }
+        }
+
+        @media (max-width: 600px) {
+            .steps-grid { grid-template-columns: 1fr; }
+            .hero-stats { gap: 24px; }
+            .landing-hero { padding: 80px 16px 40px; }
+            .landing-hero h1 { font-size: clamp(28px, 10vw, 40px); }
+            .features-section, .how-it-works, .pricing-section, .cta-section { padding: 60px 16px; }
         }
     </style>
 </head>
 <body>
-    <nav class="navbar" style="background:transparent;border-bottom-color:transparent;position:absolute;width:100%;z-index:10">
+    <canvas id="particleCanvas"></canvas>
+
+    <nav class="navbar" style="background:rgba(5,5,15,0.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom-color:var(--glass-border);position:fixed;width:100%;z-index:100">
         <div class="landing-nav">
             <div class="nav-brand">
                 <span class="brand-icon">&#9900;</span>
@@ -224,6 +459,7 @@
     </nav>
 
     <section class="landing-hero">
+        <div class="hero-badge">&#9889; Powered by TRIBE v2 Neural Simulation</div>
         <h1>Optimize Ad Creative with Brain-Grade Science</h1>
         <p>NeuralPulse Engine simulates fMRI-level neural responses to your ads — measuring attention, dopamine triggers, and memory encoding frame-by-frame. No equipment needed.</p>
         <div class="hero-cta">
@@ -231,41 +467,46 @@
             <a href="#features" class="btn btn-outline">See How It Works</a>
         </div>
         <div class="hero-stats">
-            <div class="hero-stat"><div class="num">24</div><div class="label">Brain ROIs Tracked</div></div>
-            <div class="hero-stat"><div class="num">3</div><div class="label">Core Neural Dimensions</div></div>
-            <div class="hero-stat"><div class="num">99%</div><div class="label">Ad Format Coverage</div></div>
+            <div class="hero-stat"><div class="num" data-count="24">0</div><div class="label">Brain ROIs Tracked</div></div>
+            <div class="hero-stat"><div class="num" data-count="3">0</div><div class="label">Core Neural Dimensions</div></div>
+            <div class="hero-stat"><div class="num" data-count="99">0</div><div class="label">Ad Format Coverage</div></div>
+        </div>
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <div class="line"></div>
         </div>
     </section>
 
     <section id="features" class="features-section">
-        <h2>What NeuralPulse Measures</h2>
+        <h2 class="reveal">What NeuralPulse Measures</h2>
+        <p class="section-sub reveal">Six dimensions of neural response analysis powered by Facebook's TRIBE v2 model, processing 20,000+ cortical voxels in real-time.</p>
         <div class="features-grid">
-            <div class="feature-card">
+            <div class="feature-card reveal">
                 <div class="icon">&#128200;</div>
                 <h3>Frame-by-Frame Drop-offs</h3>
                 <p>Pinpoint exact moments viewers disengage. Our temporal analysis maps attention dips, scene breaks, and visual fatigue frame-by-frame.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal">
                 <div class="icon">&#9889;</div>
                 <h3>Dopamine Trigger Tracking</h3>
                 <p>Identify reward peaks — surprise, novelty, anticipation — that drive emotional engagement and purchase intent.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal">
                 <div class="icon">&#128218;</div>
                 <h3>Memory Encoding Score</h3>
                 <p>Measure how well your ad will be remembered. Our hippocampal model predicts recall probability across different audiences.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal">
                 <div class="icon">&#9881;</div>
                 <h3>A/B Neural Testing</h3>
                 <p>Compare up to 3 ad variants head-to-head. See which creative wins on attention, dopamine, and memory — statistically validated.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal">
                 <div class="icon">&#9997;</div>
                 <h3>Copy Optimization</h3>
                 <p>Test 8 psychological framing types. Our linguistics engine scores word-level neural impact for maximum persuasive power.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal">
                 <div class="icon">&#128202;</div>
                 <h3>Actionable Directives</h3>
                 <p>P0/P1/P2 prioritized directives tell you exactly what to change, where, and the expected impact of each edit.</p>
@@ -275,24 +516,25 @@
 
     <section class="how-it-works">
         <div class="how-it-works-inner">
-            <h2>How It Works</h2>
+            <h2 class="reveal">How It Works</h2>
+            <p class="section-sub reveal">Four steps from upload to optimized creative — powered by 20,000+ simulated cortical voxels.</p>
             <div class="steps-grid">
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-num">1</div>
                     <h4>Upload Creative</h4>
                     <p>Drop your video, audio, or text ad into the analyzer. Supports MP4, MOV, MP3, WAV, and plain text.</p>
                 </div>
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-num">2</div>
                     <h4>Neural Simulation</h4>
                     <p>Our TRIBE v2 model simulates 20,000+ cortical voxel responses across 24 brain regions in real-time.</p>
                 </div>
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-num">3</div>
                     <h4>Get Scores</h4>
                     <p>Receive attention, dopamine, and memory scores with frame-level granularity and industry benchmarks.</p>
                 </div>
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-num">4</div>
                     <h4>Optimize &amp; Repeat</h4>
                     <p>Follow P0/P1/P2 directives to fix drop-offs, boost triggers, and improve your grade. A/B test the results.</p>
@@ -302,24 +544,24 @@
     </section>
 
     <section id="pricing" class="pricing-section">
-        <h2>Token-Based Pricing</h2>
-        <p style="text-align:center;color:var(--text-secondary);margin-bottom:40px">Each analysis consumes tokens. Buy bundles that fit your workflow.</p>
-        <div class="pricing-grid" id="pricingGrid">
-            <div class="pricing-card">
+        <h2 class="reveal">Token-Based Pricing</h2>
+        <p class="section-sub reveal">Each analysis consumes tokens. Buy bundles that fit your workflow. Tokens never expire.</p>
+        <div class="pricing-grid" id="pricingGrid" style="margin-bottom:16px">
+            <div class="pricing-card reveal">
                 <div class="pkg-name">Starter</div>
                 <div class="pkg-price">$9.99</div>
                 <div class="pkg-tokens">100 Tokens</div>
                 <div class="pkg-desc">~10 video analyses or 100 text analyses. Perfect for testing.</div>
                 <a href="/app/login.html?register=1" class="btn btn-outline">Get Started</a>
             </div>
-            <div class="pricing-card popular">
+            <div class="pricing-card popular reveal">
                 <div class="pkg-name">Pro</div>
                 <div class="pkg-price">$39.99</div>
                 <div class="pkg-tokens">500 Tokens</div>
                 <div class="pkg-desc">~50 video analyses or 500 text analyses. Best value for regular use.</div>
                 <a href="/app/login.html?register=1" class="btn btn-primary">Get Pro</a>
             </div>
-            <div class="pricing-card">
+            <div class="pricing-card reveal">
                 <div class="pkg-name">Agency</div>
                 <div class="pkg-price">$149.99</div>
                 <div class="pkg-tokens">2,500 Tokens</div>
@@ -327,13 +569,15 @@
                 <a href="/app/login.html?register=1" class="btn btn-outline">Contact Sales</a>
             </div>
         </div>
-        <p style="text-align:center;color:var(--text-muted);font-size:13px;margin-top:16px">Token costs: Video=50, Audio=30, Text=10, Copy=10, A/B Test=25</p>
+        <p style="text-align:center;color:var(--text-muted);font-size:13px">Token costs: Video=50, Audio=30, Text=10, Copy=10, A/B Test=25</p>
     </section>
 
     <section class="cta-section">
-        <h2>Ready to See Inside Your Audience's Brain?</h2>
-        <p>Join marketers using neural data to optimize ad creative. Start with 100 free tokens.</p>
-        <a href="/app/login.html?register=1" class="btn btn-primary">Claim Your Free Tokens &rarr;</a>
+        <div class="cta-inner">
+            <h2 class="reveal">Ready to See Inside Your Audience's Brain?</h2>
+            <p class="reveal">Join thousands of marketers using neural data to optimize ad creative. Start with 100 free tokens.</p>
+            <a href="/app/login.html?register=1" class="btn btn-primary reveal">Claim Your Free Tokens &rarr;</a>
+        </div>
     </section>
 
     <footer class="landing-footer">
@@ -347,6 +591,91 @@
     </footer>
 
     <script>
+        // Particle Canvas — 3D starfield / neural network
+        (function() {
+            const canvas = document.getElementById('particleCanvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            let mouse = { x: 0, y: 0 };
+            let frame = 0;
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const PARTICLE_COUNT = 120;
+            const CONNECTION_DIST = 150;
+
+            class Particle {
+                constructor() { this.reset(); }
+                reset() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.z = Math.random() * 300;
+                    this.size = Math.random() * 2 + 0.5;
+                    this.speedX = (Math.random() - 0.5) * 0.4;
+                    this.speedY = (Math.random() - 0.5) * 0.4;
+                    this.opacity = Math.random() * 0.6 + 0.2;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                    if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 200) {
+                        this.x -= dx * 0.002;
+                        this.y -= dy * 0.002;
+                    }
+                }
+                draw() {
+                    const alpha = this.opacity * (0.7 + 0.3 * Math.sin(frame * 0.01 + this.z));
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(0, 212, 255, ${alpha})`;
+                    ctx.fill();
+                }
+            }
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+
+            document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+            function drawConnections() {
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < CONNECTION_DIST) {
+                            const alpha = (1 - dist / CONNECTION_DIST) * 0.2;
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.strokeStyle = `rgba(0, 212, 255, ${alpha})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            function animate() {
+                frame++;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => { p.update(); p.draw(); });
+                drawConnections();
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
+
+        // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(a => {
             a.addEventListener('click', e => {
                 e.preventDefault();
@@ -354,14 +683,49 @@
                 if (target) target.scrollIntoView({ behavior: 'smooth' });
             });
         });
+
+        // Intersection Observer — reveal animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Animated counter
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const numEl = entry.target;
+                    const target = parseInt(numEl.dataset.count);
+                    let current = 0;
+                    const step = Math.ceil(target / 60);
+                    const interval = setInterval(() => {
+                        current += step;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(interval);
+                        }
+                        numEl.textContent = current + (target === 99 ? '%' : '');
+                    }, 25);
+                    counterObserver.unobserve(numEl);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('.hero-stat .num').forEach(el => counterObserver.observe(el));
+
+        // Live pricing from API
         fetch(window.location.origin + '/billing/packages')
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.packages) {
                     const grid = document.getElementById('pricingGrid');
                     grid.innerHTML = data.packages.map((p, i) => `
-                        <div class="pricing-card ${p.popular ? 'popular' : ''}">
-                            ${p.popular ? '' : ''}
+                        <div class="pricing-card ${p.popular ? 'popular' : ''} reveal">
                             <div class="pkg-name">${p.name}</div>
                             <div class="pkg-price">${p.price_display}</div>
                             <div class="pkg-tokens">${p.tokens.toLocaleString()} Tokens</div>
@@ -369,9 +733,23 @@
                             <a href="/app/login.html?register=1" class="btn ${p.popular ? 'btn-primary' : 'btn-outline'}">Get ${p.name}</a>
                         </div>
                     `).join('');
+                    document.querySelectorAll('#pricingGrid .reveal').forEach(el => observer.observe(el));
                 }
             })
             .catch(() => {});
+
+        // Parallax tilt on feature cards
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width - 0.5;
+                const y = (e.clientY - rect.top) / rect.height - 0.5;
+                card.style.transform = `perspective(800px) rotateY(${x * 8}deg) rotateX(${-y * 8}deg) translateY(-4px)`;
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = '';
+            });
+        });
     </script>
 </body>
 </html>

@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from neuromarketing import TribeAdapter, NeuromarketingAnalyzer
-from api.routers import analysis, copywriting, history
+from api.routers import analysis, copywriting, history, thumbnail
 from api.auth import router as auth_router
 from api.billing import router as billing_router
 from api.database import init_db, ensure_database
@@ -66,6 +66,7 @@ app.include_router(copywriting.router)
 app.include_router(auth_router)
 app.include_router(billing_router)
 app.include_router(history.router)
+app.include_router(thumbnail.router)
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
@@ -90,6 +91,7 @@ async def api_info():
             "authentication": True,
             "token_billing": True,
             "database": True,
+            "thumbnail_generation": True,
         }
     }
 
@@ -262,8 +264,10 @@ async def serve_app(rest_of_path: str):
             return FileResponse(fp)
     return {"error": "Page not found"}
 
-for _dir in ["css", "js", "fonts", "img", "images", "assets", "brain_viz"]:
+for _dir in ["css", "js", "fonts", "img", "images", "assets", "brain_viz", "thumbnails"]:
     _p = os.path.join(FRONTEND_DIR, _dir)
+    if _dir == "thumbnails":
+        os.makedirs(_p, exist_ok=True)
     if os.path.isdir(_p):
         try:
             app.mount(f"/{_dir}", StaticFiles(directory=_p), name=_dir)

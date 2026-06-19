@@ -8,10 +8,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root {
-            --bg-primary: #0a0a14;
-            --bg-card: #12121f;
-            --bg-secondary: #1a1a2e;
-            --border-color: #2a2d5a;
+            --bg-primary: #05050f;
+            --bg-card: rgba(16, 16, 40, 0.65);
+            --bg-secondary: rgba(12, 12, 36, 0.8);
+            --border-color: rgba(0, 212, 255, 0.12);
+            --glass-border: rgba(0, 212, 255, 0.12);
             --text-primary: #e2e8f0;
             --text-secondary: #9498c7;
             --text-muted: #5c6090;
@@ -21,10 +22,11 @@
             --accent-red: #ef4444;
             --accent-orange: #f59e0b;
             --accent-green: #10b981;
-            --radius: 12px;
-            --radius-sm: 8px;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.3);
             --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            --transition: all 0.2s ease;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -34,14 +36,26 @@
             min-height: 100vh;
             overflow-x: hidden;
         }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 10%, rgba(77, 108, 245, 0.08), transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.06), transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
 
         .app-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 12px 24px;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border-color);
+            background: rgba(12, 12, 36, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -52,28 +66,34 @@
             gap: 10px;
             font-size: 18px;
             font-weight: 700;
-            color: var(--accent-cyan);
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-decoration: none;
         }
-        .app-header .brand-icon { font-size: 22px; }
+        .app-header .brand-icon { font-size: 22px; -webkit-text-fill-color: var(--accent-cyan); }
         .app-header .header-links { display: flex; gap: 16px; align-items: center; }
         .app-header .header-links a {
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 13px;
-            padding: 6px 12px;
+            padding: 6px 14px;
             border-radius: var(--radius-sm);
             transition: var(--transition);
         }
-        .app-header .header-links a:hover { color: var(--text-primary); background: var(--bg-secondary); }
+        .app-header .header-links a:hover { color: var(--accent-cyan); background: rgba(0, 212, 255, 0.08); }
 
         .tab-bar {
             display: flex;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border-color);
+            background: rgba(12, 12, 36, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
             padding: 0 24px;
             gap: 0;
             overflow-x: auto;
+            position: relative;
+            z-index: 1;
         }
         .tab-bar button {
             padding: 12px 20px;
@@ -94,8 +114,12 @@
             border-bottom-color: var(--accent-cyan);
         }
 
-        .tab-content { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
-        .tab-content.active { display: block; }
+        .tab-content { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+        .tab-content.active { display: block; animation: fadeSlideUp 0.4s ease; }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         .brain-view-wrap {
             position: relative;
@@ -103,8 +127,9 @@
             height: 520px;
             background: #050510;
             border-radius: var(--radius);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--glass-border);
             overflow: hidden;
+            box-shadow: var(--shadow-glass), 0 0 40px rgba(0, 212, 255, 0.05);
         }
         .brain-view-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
 
@@ -115,9 +140,11 @@
         }
         .view-controls button, .mode-controls button {
             padding: 6px 14px;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--glass-border);
             border-radius: 20px;
-            background: var(--bg-card);
+            background: rgba(16, 16, 40, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             color: var(--text-secondary);
             font-size: 12px;
             cursor: pointer;
@@ -158,14 +185,17 @@
 
         .upload-area {
             background: var(--bg-card);
-            border: 2px dashed var(--border-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 2px dashed var(--glass-border);
             border-radius: var(--radius);
             padding: 48px 24px;
             text-align: center;
             transition: var(--transition);
             margin-bottom: 24px;
+            box-shadow: var(--shadow-glass);
         }
-        .upload-area.dragover { border-color: var(--accent-cyan); background: rgba(0,212,255,0.04); }
+        .upload-area.dragover { border-color: var(--accent-cyan); background: rgba(0,212,255,0.06); box-shadow: var(--shadow-card), var(--neon-glow); }
         .upload-area .upload-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
         .upload-area h3 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
         .upload-area p { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
@@ -179,14 +209,17 @@
         }
         .demo-card {
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
             border-radius: var(--radius-sm);
             padding: 20px;
             cursor: pointer;
             transition: var(--transition);
             text-align: center;
+            box-shadow: var(--shadow-glass);
         }
-        .demo-card:hover { border-color: var(--accent-cyan); background: rgba(0,212,255,0.04); }
+        .demo-card:hover { border-color: var(--accent-cyan); background: rgba(0,212,255,0.06); transform: translateY(-2px); box-shadow: var(--shadow-card), var(--neon-glow); }
         .demo-card .demo-icon { font-size: 32px; margin-bottom: 8px; }
         .demo-card h4 { font-size: 14px; margin-bottom: 4px; }
         .demo-card p { font-size: 12px; color: var(--text-muted); }
@@ -204,15 +237,16 @@
         .btn-primary {
             background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
             color: white;
+            box-shadow: 0 4px 20px rgba(77, 108, 245, 0.3);
         }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(77, 108, 245, 0.5); }
         .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
         .btn-outline {
             background: transparent;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--glass-border);
             color: var(--text-secondary);
         }
-        .btn-outline:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .btn-outline:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0, 212, 255, 0.06); box-shadow: 0 0 20px rgba(0, 212, 255, 0.1); }
 
         .regions-list {
             display: flex;
@@ -225,11 +259,13 @@
             gap: 12px;
             padding: 10px 16px;
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
             border-radius: var(--radius-sm);
             transition: var(--transition);
         }
-        .region-row:hover { border-color: rgba(0,212,255,0.2); }
+        .region-row:hover { border-color: rgba(0,212,255,0.3); }
         .region-row .rank { font-size: 12px; color: var(--text-muted); width: 24px; text-align: right; }
         .region-row .bar-wrap {
             flex: 1;
@@ -261,9 +297,12 @@
             text-align: center;
             padding: 32px;
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
             border-radius: var(--radius);
             margin-bottom: 24px;
+            box-shadow: var(--shadow-glass);
         }
         .virality-score-wrap .big-number {
             font-size: 72px;
@@ -283,9 +322,12 @@
         }
         .virality-factor {
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
             border-radius: var(--radius-sm);
             padding: 16px;
+            box-shadow: var(--shadow-glass);
         }
         .virality-factor h4 { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
         .virality-factor .vf-value { font-size: 22px; font-weight: 700; }
@@ -386,10 +428,13 @@
         }
         .demo-stat {
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
             border-radius: var(--radius-sm);
             padding: 16px;
             text-align: center;
+            box-shadow: var(--shadow-glass);
         }
         .demo-stat .ds-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
         .demo-stat .ds-value { font-size: 24px; font-weight: 700; }
@@ -413,6 +458,7 @@
         <a href="/" class="brand"><span class="brand-icon">&#9900;</span> NeuralPulse Brain Explorer</a>
         <div class="header-links">
             <a href="/app/dashboard.html">Dashboard</a>
+            <a href="/app/thumbnail-generator.html">Thumbnails</a>
             <span class="status-badge running">TRIBE v2 Ready</span>
         </div>
     </header>
