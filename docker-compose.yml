@@ -1,0 +1,179 @@
+# ============================================================
+# NeuralPulse Engine - Production Stack
+# ============================================================
+# Architecture:
+#   nginx → api (gunicorn+uvicorn) → postgres + redis
+#   Frontend deploys separately via Vercel (see vercel.json)
+# ============================================================
+# Usage:
+#   docker-compose -f docker-compose.yml up -d
+#   docker-compose -f docker-compose.yml logs -f
+#   docker-compose -f docker-compose.yml down
+# ============================================================
+
+version: "3.9"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck: &healthcheck
+  interval: 15s
+  timeout: 5s
+  retries: 3
+  start_period: 30s
+
+services:
+  # ==========================================================
+  # PostgreSQL (Primary Database)
+  # ==========================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: neuralpulse-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-neuralpulse}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-neuralpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-neuralpulse_prod_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-neuralpulse}
+    ports:
+      - "127.0.0.1:5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+
+  # ==========================================================
+  # Redis (Cache, Rate Limiting, Session Store)
+  # ==========================================================
+  redis:
+    image: redis:7-alpine
+    container_name: neuralpulse-redis
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+        reservations:
+          memory: 256m
+
+  # ==========================================================
+  # API Backend (FastAPI + Gunicorn + Uvicorn)
+  # ==========================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: neuralpulse-api:latest
+    container_name: neuralpulse-api
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads-data:/app/uploads
+      - cache-data:/app/cache
+      - thumbnails-data:/app/frontend/thumbnails
+      - brain-viz-data:/app/frontend/brain_viz
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-neuralpulse}:${POSTGRES_PASSWORD:-neuralpulse_prod_pass}@postgres:5432/${POSTGRES_DB:-neuralpulse}
+      REDIS_URL: redis://redis:6379/0
+      USE_SQLITE: "false"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      RELOAD: "false"
+      WORKERS: ${API_WORKERS:-4}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4g
+        reservations:
+          cpus: "1"
+          memory: 1g
+
+  # ==========================================================
+  # Nginx (Reverse Proxy with Caching & Rate Limiting)
+  # ==========================================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: neuralpulse-nginx
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - uploads-data:/app/uploads:ro
+      - thumbnails-data:/app/frontend/thumbnails:ro
+      - brain-viz-data:/app/frontend/brain_viz:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256m
+        reservations:
+          memory: 128m
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  uploads-data:
+    driver: local
+  cache-data:
+    driver: local
+  thumbnails-data:
+    driver: local
+  brain-viz-data:
+    driver: local
