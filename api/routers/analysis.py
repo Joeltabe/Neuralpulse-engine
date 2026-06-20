@@ -15,7 +15,14 @@ from api.schemas import (
 from api.database import get_session_maker, AnalysisHistory, User, get_token_cost
 from api.auth import get_current_user
 from api.billing import deduct_tokens
-from neuromarketing.brain_viz import get_brain_viz_urls
+
+# Try to import brain_viz, but fall back gracefully if heavy deps missing
+try:
+    from neuromarketing.brain_viz import get_brain_viz_urls
+except (ImportError, ModuleNotFoundError):
+    def get_brain_viz_urls(*args, **kwargs):
+        """Stub: brain_viz visualization deps not available"""
+        return {}
 
 def get_session():
     return get_session_maker()()
