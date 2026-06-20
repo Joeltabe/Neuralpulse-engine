@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { @apply border-white/10; }
+  body { @apply bg-surface-950 text-white; }
+  ::selection { @apply bg-neural-500/30 text-white; }
+  ::-webkit-scrollbar { @apply w-2; }
+  ::-webkit-scrollbar-track { @apply bg-surface-900; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-white/10 hover:bg-white/20; }
+}
+
+@layer components {
+  .glass { @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl; }
+  .glass-strong { @apply bg-surface-800/80 backdrop-blur-xl border border-white/10 shadow-2xl; }
+  .glow-border { @apply border-neural-500/30 shadow-[0_0_15px_rgba(77,108,245,0.15)]; }
+  .gradient-text { @apply bg-gradient-to-r from-neural-400 via-dopamine-400 to-memory-400 bg-clip-text text-transparent; }
+  .gradient-border { @apply relative; }
+  .gradient-border::before {
+    content: '';
+    @apply absolute -inset-[1px] rounded-[inherit] bg-gradient-to-r from-neural-500 via-dopamine-500 to-memory-500 -z-10 opacity-50;
+  }
+  .shimmer-bg {
+    background: linear-gradient(90deg, transparent, rgba(77,108,245,0.08), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+  .neural-grid {
+    background-image:
+      linear-gradient(rgba(77,108,245,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(77,108,245,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .card-hover { @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-neural-500/10 hover:border-neural-500/30 cursor-pointer; }
+  .input-neural { @apply bg-surface-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-neural-500/50 focus:ring-2 focus:ring-neural-500/20 focus:outline-none transition-all duration-200; }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}
