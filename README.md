@@ -105,47 +105,72 @@ The platform operates in three tiers:
 ### Frontend
 | Component | Technology |
 |-----------|-----------|
-| Framework | None (vanilla JS) |
+| Framework | Svelte 5 + SvelteKit 2 |
+| Meta-framework | SvelteKit with Vite |
 | Charts | Chart.js |
 | 3D Rendering | Three.js |
-| Styling | Custom CSS, dark sci-fi theme with glassmorphism |
+| Animations | GSAP + ScrollTrigger |
+| Styling | Tailwind CSS 3.4 with custom neural design tokens |
+| Package Manager | npm |
+| Language | TypeScript |
+| Adapter | @sveltejs/adapter-vercel |
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- Python 3.14+
-- pip
+- **Python 3.14+** and pip
+- **Node.js 18+** and npm
+- **Git LFS** (for model files: `git lfs install`)
 
 ### Installation
+
+#### Backend Setup
 
 ```bash
 # Clone the repository
 git clone https://github.com/Joeltabe/Neuralpulse-engine.git
 cd Neuralpulse-engine
 
-# Install dependencies
+# Create and activate a virtual environment (recommended)
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your preferred settings (see Configuration section)
 ```
 
-### Configuration
-
-Copy the example environment file and adjust values:
+#### Frontend Setup
 
 ```bash
-cp .env.example .env
+# Install Node.js dependencies
+npm install
+
+# Start the SvelteKit dev server
+npm run dev
 ```
 
-See [Configuration](#configuration) for all available settings.
-
 ### Run the Server
+
+Start the backend API server:
 
 ```bash
 python run.py
 ```
 
-The server starts at `http://0.0.0.0:8000` by default with hot-reload enabled.
+In a separate terminal, start the frontend dev server:
+
+```bash
+npm run dev
+```
+
+The API server starts at `http://0.0.0.0:8000` by default with hot-reload enabled, and the frontend dev server runs at `http://localhost:5173`.
 
 ```
 =======================================
@@ -154,52 +179,67 @@ The server starts at `http://0.0.0.0:8000` by default with hot-reload enabled.
 =======================================
  API:         http://0.0.0.0:8000
  Docs:        http://0.0.0.0:8000/docs
- Landing:     http://0.0.0.0:8000/
- Dashboard:   http://0.0.0.0:8000/app/dashboard.html
+ Landing:     http://localhost:5173
+ Dashboard:   http://localhost:5173/dashboard
 =======================================
 ```
+
+### Frontend Production Build
+
+```bash
+npm run build
+npm run preview    # preview the production build locally
+```
+
+The production frontend is built to the `build/` directory and deployed via the SvelteKit adapter (Vercel by default).
 
 ---
 
 ## Configuration
 
-All configuration is managed through environment variables (`.env` file).
+All configuration is managed through environment variables (`.env` file). The `.env.example` file contains the default values.
 
-### Core
+### Runtime
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `USE_REAL_TRIBE` | `false` | Use real TRIBE v2 model (local/API) vs simulation |
-| `TRIBE_CACHE_DIR` | `./cache` | Model cache directory |
-| `TRIBE_MODEL_NAME` | `facebook/tribev2` | Hugging Face model name |
-| `DEVICE` | `cpu` | Torch device (`cpu` or `cuda`) |
-| `UPLOAD_DIR` | `./uploads` | Temporary upload directory |
 | `HOST` | `0.0.0.0` | Server bind address |
 | `PORT` | `8000` | Server port |
-| `RELOAD` | `true` | Enable hot reload |
+| `RELOAD` | `true` | Enable hot reload on code changes |
+
+### TRIBE v2 Engine
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USE_REAL_TRIBE` | `false` | Use real TRIBE v2 model (`true`) vs simulation (`false`) |
+| `TRIBE_CACHE_DIR` | `./cache` | Model cache directory |
+| `TRIBE_MODEL_NAME` | `facebook/tribev2` | Hugging Face model name |
+| `TRIBE_API_URL` | `https://thesilenthowler029-tribe-v2-api.hf.space` | Remote TRIBE v2 API endpoint |
+| `DEVICE` | `cpu` | Torch device (`cpu` or `cuda`) |
+
+### File Storage
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UPLOAD_DIR` | `./uploads` | Temporary upload directory for analysis files |
 
 ### Database
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | *(Neon PostgreSQL)* | PostgreSQL connection string |
-| `USE_SQLITE` | `false` | Force SQLite instead of PostgreSQL |
+| `DATABASE_URL` | *(Neon PostgreSQL)* | PostgreSQL connection string (async with asyncpg) |
+| `USE_SQLITE` | `false` | Force SQLite fallback instead of PostgreSQL |
+
+The system uses SQLAlchemy async ORM with automatic fallback to SQLite if PostgreSQL is unreachable.
 
 ### Authentication
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JWT_SECRET` | `neuralpulse-dev-secret-...` | JWT signing secret (change in production!) |
-| `TOKEN_EXPIRE_MINUTES` | `1440` | Token expiration (24 hours) |
+| `JWT_SECRET` | *(auto-generated)* | JWT signing secret (change in production!) |
+| `TOKEN_EXPIRE_MINUTES` | `1440` | JWT token expiration (24 hours) |
 
-### Stripe
+### Stripe (Token Purchases)
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STRIPE_SECRET_KEY` | *(empty)* | Stripe API secret key |
+| `STRIPE_SECRET_KEY` | *(empty)* | Stripe API secret key (optional, token system falls back gracefully) |
 | `STRIPE_WEBHOOK_SECRET` | *(empty)* | Stripe webhook signing secret |
 | `FRONTEND_URL` | `http://localhost:8000` | Frontend URL for Stripe redirects |
-
-### TRIBE v2 API
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TRIBE_API_URL` | `https://thesilenthowler029-tribe-v2-api.hf.space` | Remote TRIBE v2 API endpoint |
 
 ---
 
@@ -455,27 +495,55 @@ The system uses SQLAlchemy async ORM with automatic fallback from Neon PostgreSQ
 
 ## Frontend
 
-The frontend is a single-page application built with vanilla HTML, CSS, and JavaScript.
+The frontend is a **Svelte 5** application built with **SvelteKit 2**, **TypeScript**, and **Tailwind CSS 3.4**.
 
 ### Pages
 
 | Page | Route | Description |
 |------|-------|-------------|
-| Landing | `/` | Marketing landing page |
-| Login | `/app/login.html` | Login/register form |
-| Dashboard | `/app/dashboard.html` | Main analysis dashboard |
-| Pricing | `/app/pricing.html` | Token pricing plans |
-| Brain Explorer | `/app/brain-explorer.html` | Interactive 3D brain viewer |
-| Thumbnail Generator | `/app/thumbnail-generator.html` | AI thumbnail creation |
-| Thumbnail History | `/app/thumbnail-history.html` | Past thumbnail generations |
-| Terms | `/app/terms.html` | Terms of service |
-| Privacy | `/app/privacy.html` | Privacy policy |
+| Landing | `/` | Marketing landing page with animated hero |
+| Login | `/login` | Login form |
+| Register | `/register` | Registration form |
+| Dashboard | `/dashboard` | Main analysis dashboard |
+| Analyze | `/analyze` | Video/audio/text analysis runner |
+| AB Test | `/ab-test` | A/B test comparison interface |
+| Copywriting | `/copywriting` | Neural copy analysis tool |
+| Brain Explorer | `/brain-explorer` | Interactive 3D brain viewer |
+| Thumbnail Generator | `/thumbnail` | AI thumbnail creation |
+| History | `/history` | Past analysis results |
+| Settings | `/settings` | User settings |
+| Pricing | `/pricing` | Token pricing plans |
+| Terms | `/terms` | Terms of service |
+| Privacy | `/privacy` | Privacy policy |
+| Results | `/results/[id]` | Individual analysis detail view |
 
 ### Key Libraries
 
-- **Chart.js** — Engagement curves, radar charts, doughnut charts, bar charts, gauge charts
-- **Three.js** — 3D brain mesh rendering with ROI atlas highlighting
-- **Custom CSS** — Dark sci-fi theme with glassmorphism, gradients, and animations
+| Library | Purpose |
+|---------|---------|
+| **Chart.js** (via npm) | Engagement curves, radar charts, doughnut charts, bar charts, gauge charts |
+| **Three.js** (via npm) | 3D brain mesh rendering with ROI atlas highlighting |
+| **GSAP** (via npm) | Scroll-triggered animations, page transitions, hero animations |
+| **Tailwind CSS** | Utility-first styling with custom neural design tokens |
+| **SvelteKit** | File-based routing, SSR/SSR hydration, API proxy, form actions |
+
+### Design System
+
+The Tailwind config in `tailwind.config.ts` defines custom color palettes for each neural dimension:
+
+| Token | Usage |
+|-------|-------|
+| `neural-*` | Primary actions, active states, primary UI elements |
+| `dopamine-*` | Reward/dopamine dimension visualizations |
+| `memory-*` | Memory dimension visualizations |
+| `surface-*` | Backgrounds, surfaces, elevated elements |
+
+Custom component classes in `src/app.css`:
+- `.glass` / `.glass-strong` — Glassmorphism panels
+- `.gradient-text` — Gradient text for headings
+- `.card-hover` — Interactive card hover effects
+- `.input-neural` — Styled form inputs
+- `.neural-grid` — Background grid pattern
 
 ---
 
@@ -514,6 +582,7 @@ Neuralpulse-engine/
 │       ├── history.py      # History/stats endpoints
 │       └── thumbnail.py    # Thumbnail generation endpoints
 ├── neuromarketing/         # Core ML engine (primary)
+│   ├── __init__.py
 │   ├── analyzer.py         # NeuromarketingAnalyzer
 │   ├── tribe_adapter.py    # TRIBE v2 adapter (local/API/simulated)
 │   ├── emotion_classifier.py
@@ -529,23 +598,79 @@ Neuralpulse-engine/
 │   ├── train_classifier.py
 │   ├── config.py           # Constants and thresholds
 │   └── models.py           # Pydantic data models
-├── netromarketing/         # Alternative/legacy engine
-├── frontend/               # Static web frontend
-│   ├── index.html
-│   ├── css/style.css
-│   ├── js/
-│   │   ├── app.js
-│   │   ├── charts.js
-│   │   └── brain.js
-│   └── ... (other pages)
-├── models/                 # Pre-trained model files
+├── src/                    # SvelteKit frontend source
+│   ├── app.html            # HTML shell
+│   ├── app.css             # Tailwind + custom component classes
+│   ├── app.d.ts            # Ambient type declarations
+│   ├── hooks.server.ts     # Server hooks (auth, CSP headers)
+│   ├── lib/                # Shared components, stores, utils
+│   │   ├── components/     # UI & layout components
+│   │   ├── stores/         # Svelte writable stores
+│   │   ├── types/          # TypeScript type definitions
+│   │   ├── utils/          # API client, helpers
+│   │   └── i18n/           # Internationalization
+│   └── routes/             # File-based SvelteKit routing
+│       ├── +layout.svelte  # Root layout (sidebar, navbar, effects)
+│       ├── +layout.server.ts
+│       ├── +page.svelte    # Landing page
+│       ├── login/
+│       ├── dashboard/
+│       ├── analyze/
+│       ├── ab-test/
+│       ├── brain-explorer/
+│       └── ... (other routes)
+├── static/                 # Static assets
+│   └── favicon.svg
+├── models/                 # Pre-trained model files (git LFS)
 ├── scripts/                # Utility scripts
-├── uploads/                # Temporary uploads
+├── uploads/                # Temporary uploads (gitignored)
+├── cache/                  # Model cache (gitignored)
 ├── run.py                  # Server entry point
 ├── requirements.txt        # Python dependencies
+├── package.json            # Node.js dependencies & scripts
+├── svelte.config.js        # SvelteKit configuration (Vercel adapter)
+├── vite.config.ts          # Vite bundler configuration
+├── tailwind.config.ts      # Tailwind CSS with neural design tokens
+├── postcss.config.js       # PostCSS (Tailwind + autoprefixer)
+├── tsconfig.json           # TypeScript configuration
 ├── .env.example            # Environment template
-└── opencode.json           # AI IDE configuration
+└── opencode.json           # OpenCode AI IDE configuration
 ```
+
+### Frontend Development
+
+The SvelteKit frontend runs on its own dev server with HMR (Hot Module Replacement):
+
+```bash
+npm run dev          # start dev server (default http://localhost:5173)
+npm run build        # production build to build/
+npm run preview      # preview production build locally
+npm run check        # type-check with svelte-check
+```
+
+The backend API must be running separately (see [Run the Server](#run-the-server)). The frontend dev server proxies API requests through SvelteKit's server hooks when needed.
+
+### Gitignore
+
+The `.gitignore` file excludes the following from version control:
+
+| Pattern | What it excludes |
+|---------|-----------------|
+| `node_modules/` | npm dependencies |
+| `.svelte-kit/` | SvelteKit build cache |
+| `build/` / `dist/` | Production build output |
+| `__pycache__/`, `*.py[cod]` | Python bytecode |
+| `*.egg-info/`, `*.egg` | Python package builds |
+| `.env`, `.env.*` | Environment secrets |
+| `*.db`, `*.db-journal` | SQLite database files |
+| `uploads/*` | Temporary uploads |
+| `cache/*` | Model caching |
+| `models/*` | Pre-trained model files (tracked via Git LFS) |
+| `frontend/thumbnails/` | Generated thumbnail images |
+| `frontend/brain_viz/` | Generated brain visualization HTML |
+| `server*.log`, `server*.err` | Server log files |
+| `.vercel/` | Vercel deploy artifacts |
+| `frontend/` | Legacy static frontend (replaced by SvelteKit) |
 
 ### Training the Emotion Classifier
 
