@@ -52,6 +52,43 @@ class Recommendation(BaseModel):
     expected_impact: float = Field(..., ge=0, le=1)
 
 
+class EmotionState(BaseModel):
+    attention: float = Field(..., ge=0, le=1)
+    arousal: float = Field(..., ge=0, le=1)
+    valence: float = Field(..., ge=0, le=1)
+    engagement: float = Field(..., ge=0, le=1)
+    cognitive_load: float = Field(..., ge=0, le=1)
+    emotional_disengagement: float = Field(..., ge=0, le=1)
+    attention_label: str = ""
+    arousal_label: str = ""
+    valence_label: str = ""
+    engagement_label: str = ""
+    cognitive_load_label: str = ""
+    emotional_disengagement_label: str = ""
+
+
+class EmotionalEvent(BaseModel):
+    timestamp: float
+    type: str
+    severity: str
+    value: Optional[float] = None
+    value_before: Optional[float] = None
+    value_after: Optional[float] = None
+    description: str = ""
+
+
+class EmotionTimeline(BaseModel):
+    dimensions: List[str] = Field(default_factory=lambda: [
+        "attention", "arousal", "valence", "engagement",
+        "cognitive_load", "emotional_disengagement",
+    ])
+    timestamps: List[float] = Field(default_factory=list)
+    scores: Dict[str, List[float]] = Field(default_factory=dict)
+    labels: Dict[str, List[str]] = Field(default_factory=dict)
+    events: List[EmotionalEvent] = Field(default_factory=list)
+    confidence: Dict[str, Dict[str, List[float]]] = Field(default_factory=dict)
+
+
 class AnalysisResult(BaseModel):
     id: str = ""
     filename: str = ""
@@ -131,43 +168,6 @@ class CopyAnalysisRequest(BaseModel):
     framing_types: Optional[List[str]] = None
 
 
-class EmotionState(BaseModel):
-    attention: float = Field(..., ge=0, le=1)
-    arousal: float = Field(..., ge=0, le=1)
-    valence: float = Field(..., ge=0, le=1)
-    engagement: float = Field(..., ge=0, le=1)
-    cognitive_load: float = Field(..., ge=0, le=1)
-    emotional_disengagement: float = Field(..., ge=0, le=1)
-    attention_label: str = ""
-    arousal_label: str = ""
-    valence_label: str = ""
-    engagement_label: str = ""
-    cognitive_load_label: str = ""
-    emotional_disengagement_label: str = ""
-
-
-class EmotionalEvent(BaseModel):
-    timestamp: float
-    type: str
-    severity: str
-    value: Optional[float] = None
-    value_before: Optional[float] = None
-    value_after: Optional[float] = None
-    description: str = ""
-
-
-class EmotionTimeline(BaseModel):
-    dimensions: List[str] = Field(default_factory=lambda: [
-        "attention", "arousal", "valence", "engagement",
-        "cognitive_load", "emotional_disengagement",
-    ])
-    timestamps: List[float] = Field(default_factory=list)
-    scores: Dict[str, List[float]] = Field(default_factory=dict)
-    labels: Dict[str, List[str]] = Field(default_factory=dict)
-    events: List[EmotionalEvent] = Field(default_factory=list)
-    confidence: Dict[str, Dict[str, List[float]]] = Field(default_factory=dict)
-
-
 class TimelineFeatures(BaseModel):
     feature_matrix: List[List[float]] = Field(default_factory=list)
     timestamps: List[float] = Field(default_factory=list)
@@ -176,6 +176,7 @@ class TimelineFeatures(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
     status: str
     model_loaded: bool
     version: str = "1.0.0"
