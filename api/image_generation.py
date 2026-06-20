@@ -230,8 +230,8 @@ async def generate_image(
         thumb.save(thumb_path, "PNG")
         gen_time_ms = int((time.time() - t0) * 1000)
         return {
-            "image_url": f"/thumbnails/{os.path.basename(output_path)}",
-            "thumbnail_url": f"/thumbnails/{os.path.basename(thumb_path)}",
+            "image_url": f"/api/thumbnails/{os.path.basename(output_path)}",
+            "thumbnail_url": f"/api/thumbnails/{os.path.basename(thumb_path)}",
             "generation_time_ms": gen_time_ms,
         }
 

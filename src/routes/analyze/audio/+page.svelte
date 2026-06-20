@@ -58,6 +58,10 @@
         <Button onclick={analyze} variant="gradient" size="lg" class="w-full" disabled={!file} loading={loading} />
       </div>
     </Card>
+    <div class="flex gap-3 justify-center">
+      <a href="/analyze/video" class="glass rounded-xl px-4 py-2 text-sm text-white/50 hover:text-white hover:bg-white/5 transition-colors">Video Analysis</a>
+      <a href="/analyze/text" class="glass rounded-xl px-4 py-2 text-sm text-white/50 hover:text-white hover:bg-white/5 transition-colors">Text Analysis</a>
+    </div>
   {/if}
 
   {#if loading}

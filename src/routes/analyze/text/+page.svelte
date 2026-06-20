@@ -47,6 +47,10 @@
         </Button>
       </div>
     </Card>
+    <div class="flex gap-3 justify-center">
+      <a href="/analyze/video" class="glass rounded-xl px-4 py-2 text-sm text-white/50 hover:text-white hover:bg-white/5 transition-colors">Video Analysis</a>
+      <a href="/analyze/audio" class="glass rounded-xl px-4 py-2 text-sm text-white/50 hover:text-white hover:bg-white/5 transition-colors">Audio Analysis</a>
+    </div>
   {/if}
 
   {#if loading}<div class="flex justify-center py-16"><Spinner size="lg" /></div>{/if}

@@ -15,7 +15,7 @@
   const btnColor = { neural: 'neural', dopamine: 'dopamine', memory: 'memory' } as const;
 
   onMount(() => {
-    gsap.from('.type-card', { opacity: 0, y: 30, duration: 0.6, stagger: 0.15, ease: 'power3.out' });
+    gsap.to('.type-card', { opacity: 1, y: 0, duration: 0.6, stagger: 0.15, ease: 'power3.out' });
   });
 </script>
 
@@ -26,7 +26,7 @@
   </div>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     {#each types as t}
-      <a href={t.href} class="type-card glass rounded-2xl p-6 card-hover bg-gradient-to-br {colorMap[t.color]} flex flex-col items-center text-center gap-4">
+      <a href={t.href} class="type-card glass rounded-2xl p-6 card-hover bg-gradient-to-br {colorMap[t.color]} flex flex-col items-center text-center gap-4 opacity-0 translate-y-[30px]">
         <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
           <svg class="w-8 h-8 {iconColor[t.color]}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={t.icon}/></svg>
         </div>
@@ -37,5 +37,8 @@
         <span class="text-xs text-neural-400 font-medium">50 tokens &rarr;</span>
       </a>
     {/each}
+  </div>
+  <div class="mt-6 text-center">
+    <a href="/analyze/text" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-memory-600/10 text-memory-300 hover:bg-memory-600/15">Analyze Text — paste or upload text files</a>
   </div>
 </div>

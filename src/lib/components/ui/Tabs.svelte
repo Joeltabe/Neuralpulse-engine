@@ -16,7 +16,7 @@
   let { tabs, active = '', onchange, class: className = '' }: Props = $props();
 
   let indicator: HTMLDivElement;
-  let tabRefs: HTMLButtonElement[] = [];
+  let tabRefs = $state<HTMLButtonElement[]>([]);
 
   function select(value: string, idx: number) {
     active = value;

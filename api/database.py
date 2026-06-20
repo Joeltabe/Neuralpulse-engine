@@ -55,7 +55,7 @@ def get_engine():
                 "pool_pre_ping": True,
             }
 
-        _engine = create_asyncengine(
+        _engine = create_async_engine(
             db_url,
             echo=DB_ECHO,
             connect_args=connect_args,

@@ -231,13 +231,13 @@ async def generate_thumbnails(
                     thumb = img.copy()
                     thumb.thumbnail((640, 360))
                     thumb.save(thumb_path_local, 'PNG')
-                    image_url = f"/thumbnails/{os.path.basename(image_path)}"
-                    thumbnail_url = f"/thumbnails/{os.path.basename(thumb_path_local)}"
+                    image_url = f"/api/thumbnails/{os.path.basename(image_path)}"
+                    thumbnail_url = f"/api/thumbnails/{os.path.basename(thumb_path_local)}"
                 except Exception as e:
                     logger.warning(f"Failed to write placeholder thumbnail: {e}")
                     # fallback to non-existing path (frontend will render SVG placeholder)
-                    image_url = f"/thumbnails/{gen_id}_{model_key}.png"
-                    thumbnail_url = f"/thumbnails/{gen_id}_{model_key}_thumb.png"
+                    image_url = f"/api/thumbnails/{gen_id}_{model_key}.png"
+                    thumbnail_url = f"/api/thumbnails/{gen_id}_{model_key}_thumb.png"
                 gen_time_ms = 500
                 errors.append({"model": model_key, "error": error_msg})
 
