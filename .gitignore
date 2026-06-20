@@ -57,3 +57,7 @@ build-log.txt
 # Logs
 *.log
 npm-debug.log*
+
+# Docker
+.containerenv
+.env.production

@@ -5,9 +5,15 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
   preprocess: vitePreprocess(),
   kit: {
-    adapter: adapter({ runtime: 'nodejs18.x' }),
-    csrf: { checkOrigin: false }
-  }
+    adapter: adapter({
+      runtime: 'nodejs20.x',
+      isr: {
+        expiration: 60,
+        bypassToken: process.env.ISR_BYPASS_TOKEN,
+      },
+    }),
+    csrf: { checkOrigin: false },
+  },
 };
 
 export default config;

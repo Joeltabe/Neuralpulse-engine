@@ -23,3 +23,8 @@ transformers>=4.44.0
 accelerate>=0.33.0
 sentencepiece>=0.2.0
 protobuf>=3.20.0
+
+# Production
+gunicorn==23.0.0
+redis[hiredis]>=5.0.0
+sentry-sdk>=2.0.0

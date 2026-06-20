@@ -3,7 +3,7 @@ import logging
 import time
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Index
 from sqlalchemy.sql import func
 import enum
 
@@ -16,13 +16,20 @@ NEON_URL = os.getenv(
 
 SQLITE_URL = "sqlite+aiosqlite:///neuralpulse.db"
 
+# Connection pool settings
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "20"))
+DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "40"))
+DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
+
+
 def _get_db_url():
     if os.getenv("USE_SQLITE", "").lower() == "true":
         logger.info("Using SQLite (USE_SQLITE=true)")
         return SQLITE_URL
-    if os.getenv("DATABASE_URL"):
-        return NEON_URL
-    return NEON_URL
+    return os.getenv("DATABASE_URL", NEON_URL)
+
 
 db_url = _get_db_url()
 _using_sqlite = db_url.startswith("sqlite")
@@ -30,22 +37,46 @@ _using_sqlite = db_url.startswith("sqlite")
 _engine = None
 _session_maker = None
 
+
 def get_engine():
     global _engine
     if _engine is None:
         connect_args = {}
         if _using_sqlite:
             connect_args["check_same_thread"] = False
-        _engine = create_async_engine(db_url, echo=False, pool_pre_ping=not _using_sqlite, connect_args=connect_args)
+
+        pool_kwargs = {}
+        if not _using_sqlite:
+            pool_kwargs = {
+                "pool_size": DB_POOL_SIZE,
+                "max_overflow": DB_MAX_OVERFLOW,
+                "pool_timeout": DB_POOL_TIMEOUT,
+                "pool_recycle": DB_POOL_RECYCLE,
+                "pool_pre_ping": True,
+            }
+
+        _engine = create_asyncengine(
+            db_url,
+            echo=DB_ECHO,
+            connect_args=connect_args,
+            **pool_kwargs,
+        )
     return _engine
+
 
 def get_session_maker():
     global _session_maker
     if _session_maker is None:
-        _session_maker = async_sessionmaker(get_engine(), class_=AsyncSession, expire_on_commit=False)
+        _session_maker = async_sessionmaker(
+            get_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
     return _session_maker
 
+
 async_session = get_session_maker()
+
 
 async def ensure_database():
     global _using_sqlite, db_url, _engine, _session_maker
@@ -73,8 +104,10 @@ async def ensure_database():
         async_session = get_session_maker()
         return True
 
+
 class Base(DeclarativeBase):
     pass
+
 
 class UserRole(str, enum.Enum):
     free = "free"
@@ -83,11 +116,13 @@ class UserRole(str, enum.Enum):
     agency = "agency"
     admin = "admin"
 
+
 class TransactionType(str, enum.Enum):
     purchase = "purchase"
     usage = "usage"
     bonus = "bonus"
     refund = "refund"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -104,6 +139,12 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    __table_args__ = (
+        Index("idx_users_email_active", "email", "is_active"),
+        Index("idx_users_created_at", "created_at"),
+    )
+
+
 class TokenPackage(Base):
     __tablename__ = "token_packages"
 
@@ -115,6 +156,7 @@ class TokenPackage(Base):
     popular = Column(Boolean, default=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 class TokenTransaction(Base):
     __tablename__ = "token_transactions"
@@ -128,6 +170,11 @@ class TokenTransaction(Base):
     reference_id = Column(String(255), nullable=True)
     stripe_payment_id = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_transactions_user_created", "user_id", "created_at"),
+    )
+
 
 class AnalysisHistory(Base):
     __tablename__ = "analysis_history"
@@ -146,6 +193,12 @@ class AnalysisHistory(Base):
     tokens_used = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        Index("idx_analysis_user_created", "user_id", "created_at"),
+        Index("idx_analysis_media_type", "media_type"),
+    )
+
+
 class ThumbnailHistory(Base):
     __tablename__ = "thumbnail_history"
 
@@ -159,6 +212,11 @@ class ThumbnailHistory(Base):
     tokens_used = Column(Integer, nullable=False, default=15)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        Index("idx_thumbnail_user_created", "user_id", "created_at"),
+    )
+
+
 def get_token_cost(media_type: str) -> int:
     costs = {
         "video": 50,
@@ -169,6 +227,7 @@ def get_token_cost(media_type: str) -> int:
         "thumbnail": 15,
     }
     return costs.get(media_type, 10)
+
 
 TOKEN_COSTS = {
     "video": 50,
@@ -184,6 +243,7 @@ DEFAULT_PACKAGES = [
     {"name": "Pro", "tokens": 500, "price_cents": 3999, "price_display": "$39.99", "popular": True, "description": "Ideal for regular ad optimization workflows"},
     {"name": "Agency", "tokens": 2500, "price_cents": 14999, "price_display": "$149.99", "popular": False, "description": "For agencies running high-volume client analysis"},
 ]
+
 
 async def init_db():
     engine = get_engine()
