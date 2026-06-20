@@ -702,6 +702,163 @@ This package is not wired into the API routers but serves as a reference for enh
 
 ---
 
+## Production Deployment
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Vercel (Frontend)                                    │
+│  SvelteKit SSR + ISR │ caching │ CDN                 │
+└──────────┬──────────────────────────────────────────┘
+           │ HTTPS (API proxy via SvelteKit server routes)
+┌──────────▼──────────────────────────────────────────┐
+│  Nginx (Reverse Proxy)                                │
+│  Rate limiting │ caching │ compression │ SSL          │
+└──────────┬──────────────────────────────────────────┘
+           │
+┌──────────▼──────────────────────────────────────────┐
+│  API (Gunicorn + Uvicorn workers)                     │
+│  FastAPI │ JWT auth │ Stripe billing │ TRIBE v2       │
+└──────────┬───────────────────────────┬──────────────┘
+           │                           │
+┌──────────▼─────────┐     ┌──────────▼──────────────┐
+│  PostgreSQL 16      │     │  Redis 7                  │
+│  Primary database   │     │  Cache │ rate limiting    │
+│  Connection pooling │     │  Session store            │
+└────────────────────┘     └─────────────────────────┘
+```
+
+The **frontend** (SvelteKit) deploys to **Vercel** using `npm run build`. The **backend** (FastAPI) runs in Docker with PostgreSQL and Redis on a VPS or cloud container service.
+
+### Deploy the Backend (Docker)
+
+```bash
+# 1. Configure production environment
+cp .env.production .env
+# Edit .env with your secrets
+
+# 2. Build and start the stack
+docker-compose -f docker-compose.yml up -d
+
+# 3. Verify health
+curl http://localhost/health
+
+# 4. View logs
+docker-compose -f docker-compose.yml logs -f api
+```
+
+### Deploy the Frontend (Vercel)
+
+```bash
+# 1. Set environment variables in Vercel dashboard:
+#    - API_URL: https://your-backend-domain.com
+#    - PUBLIC_APP_URL: https://your-frontend.vercel.app
+
+# 2. Deploy (via Vercel CLI or Git integration)
+npx vercel --prod
+```
+
+Or connect your GitHub repo to Vercel for automatic deployments.
+
+### Performance Configuration
+
+#### Backend Workers
+
+Adjust `WORKERS` in `.env.production` based on your CPU:
+- **2 vCPUs**: `WORKERS=2`
+- **4 vCPUs**: `WORKERS=4`
+- **8 vCPUs**: `WORKERS=8`
+
+Rule of thumb: `WORKERS = (2 × CPU cores) + 1`
+
+#### Database Connection Pool
+
+For high concurrency (100k users):
+
+```env
+DB_POOL_SIZE=50
+DB_MAX_OVERFLOW=100
+DB_POOL_TIMEOUT=30
+DB_POOL_RECYCLE=1800
+```
+
+#### Redis Memory
+
+Redis is used for rate limiting and optional caching:
+- Default: `maxmemory 1gb` with `allkeys-lru` eviction
+- For high traffic: increase to `2gb`
+
+#### Rate Limiting
+
+Configured per endpoint tier in `.env.production`:
+
+| Tier | Default Rate | Window |
+|------|-------------|--------|
+| General API | 100 req | 60s |
+| Auth endpoints | 20 req | 60s |
+| Analysis endpoints | 10 req | 60s |
+
+### Scaling to 100k+ Users
+
+#### Horizontal Scaling
+
+The API is **stateless** (JWT-based auth), so you can scale horizontally:
+
+```bash
+# Run multiple API instances behind the load balancer
+docker-compose up -d --scale api=3
+```
+
+Update `nginx/nginx.conf` upstream block to include all instances.
+
+#### Database
+
+- Use a **managed PostgreSQL** service (Neon, AWS RDS, Supabase) with connection pooling (PgBouncer)
+- Key indexes already defined in `api/database.py`:
+  - `users`: email + is_active, created_at
+  - `analysis_history`: user_id + created_at, media_type
+  - `token_transactions`: user_id + created_at
+  - `thumbnail_history`: user_id + created_at
+- For analytics: add read replicas
+
+#### Caching Strategy
+
+| Data | Cache | TTL | Strategy |
+|------|-------|-----|----------|
+| Token packages | In-memory | 5 min | Lazy refresh |
+| Analysis results | Redis | 1 hour | Cache-aside |
+| Rate limit counters | Redis | window | Real-time |
+| Static files | Nginx/CDN | 30 days | Immutable |
+| SvelteKit pages | Vercel ISR | 60s | Stale-while-revalidate |
+
+#### CDN
+
+The frontend is already served via Vercel's global CDN. Nginx caches static assets with 30-day immutable Cache-Control headers.
+
+### Monitoring
+
+- **Health endpoint**: `GET /health` — checks DB connectivity and model status
+- **Request tracing**: Every response includes `X-Request-ID` and `X-Process-Time` headers
+- **Slow request alerts**: Requests exceeding 5s are logged as warnings
+- **Error tracking**: Optional Sentry integration (`SENTRY_DSN`)
+
+### Security
+
+| Measure | Implementation |
+|---------|---------------|
+| JWT Authentication | HS256 tokens with configurable expiry |
+| Password Hashing | bcrypt with auto-generated salt |
+| Rate Limiting | Redis-backed per-IP limiting per tier |
+| CORS | Restricted origins in production |
+| CSP Headers | Set via SvelteKit hooks |
+| SQL Injection | SQLAlchemy parameterized queries |
+| XSS Protection | Content-Security-Policy headers |
+| HTTPS | Nginx termination / Vercel edge |
+| File Upload Validation | Extension + size limits |
+
+---
+
 ## License
 
 This project is open source. See the LICENSE file for details.
