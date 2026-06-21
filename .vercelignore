@@ -1,0 +1,34 @@
+# Python backend — deployed separately on Railway
+api/
+neuromarketing/
+backend_api/
+requirements.txt
+Dockerfile
+docker-compose.yml
+docker-compose.prod.yml
+nginx/
+run.py
+railway.json
+
+# Runtime directories (never in source)
+uploads/
+cache/
+*.db
+
+# Secrets & config
+.env
+.env.production
+.env.example
+
+# Build artifacts (re-created by Vercel build)
+.svelte-kit/
+build/
+
+# IDE & tools
+.opencode/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
