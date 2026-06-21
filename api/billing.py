@@ -8,6 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import get_session_maker, User, TokenPackage, TokenTransaction, TransactionType
+from uuid import uuid4
 from api.auth import user_to_dict
 from api.auth import get_current_user
 
@@ -34,12 +35,20 @@ class BalanceResponse(BaseModel):
 
 class PurchaseRequest(BaseModel):
     package_id: int
+    payment_method: str = "card"
+
+class MobilePaymentRequest(BaseModel):
+    package_id: int
+    provider: str  # "orange" or "mtn"
+    phone: str
 
 class PurchaseResponse(BaseModel):
     success: bool
     checkout_url: Optional[str] = None
     transaction: Optional[dict] = None
     error: Optional[str] = None
+    payment_ref: Optional[str] = None
+    provider: Optional[str] = None
 
 class TransactionHistoryResponse(BaseModel):
     success: bool
@@ -82,7 +91,12 @@ async def purchase_package(request: PurchaseRequest, user: User = Depends(get_cu
         if not pkg:
             return PurchaseResponse(success=False, error="Package not found")
 
-        if stripe.api_key:
+        result = await session.execute(select(User).where(User.id == user.id))
+        db_user = result.scalar_one_or_none()
+        if not db_user:
+            return PurchaseResponse(success=False, error="User not found")
+
+        if request.payment_method == "card" and stripe.api_key:
             try:
                 checkout_session = stripe.checkout.Session.create(
                     payment_method_types=["card"],
@@ -95,24 +109,20 @@ async def purchase_package(request: PurchaseRequest, user: User = Depends(get_cu
                         "quantity": 1,
                     }],
                     mode="payment",
-                    success_url=os.getenv("FRONTEND_URL", "http://localhost:8000/app") + "/dashboard.html?payment=success",
-                    cancel_url=os.getenv("FRONTEND_URL", "http://localhost:8000/app") + "/pricing.html?payment=cancelled",
+                    success_url=os.getenv("FRONTEND_URL", "http://localhost:5173") + "/payment?success=1",
+                    cancel_url=os.getenv("FRONTEND_URL", "http://localhost:5173") + "/payment?cancelled=1",
                     metadata={
                         "user_id": str(user.id),
                         "package_id": str(pkg.id),
                         "tokens": str(pkg.tokens),
                     },
                 )
-                return PurchaseResponse(success=True, checkout_url=checkout_session.url)
+                return PurchaseResponse(success=True, checkout_url=checkout_session.url, provider="stripe")
             except Exception as e:
                 logger.error(f"Stripe error: {e}")
                 return PurchaseResponse(success=False, error="Payment processing error")
 
-        result = await session.execute(select(User).where(User.id == user.id))
-        db_user = result.scalar_one_or_none()
-        if not db_user:
-            return PurchaseResponse(success=False, error="User not found")
-
+        ref = f"MANUAL-{uuid4().hex[:12].upper()}"
         db_user.token_balance += pkg.tokens
         db_user.total_tokens_purchased += pkg.tokens
         tx = TokenTransaction(
@@ -120,7 +130,8 @@ async def purchase_package(request: PurchaseRequest, user: User = Depends(get_cu
             transaction_type=TransactionType.purchase.value,
             amount=pkg.tokens,
             balance_after=db_user.token_balance,
-            description=f"Purchased {pkg.name} package ({pkg.tokens} tokens)",
+            description=f"{request.payment_method.upper()} purchase: {pkg.name} ({pkg.tokens} tokens)",
+            stripe_payment_id=ref,
         )
         session.add(tx)
         await session.commit()
@@ -133,7 +144,9 @@ async def purchase_package(request: PurchaseRequest, user: User = Depends(get_cu
                 "balance_after": tx.balance_after,
                 "description": tx.description,
                 "created_at": tx.created_at.isoformat() if tx.created_at else None,
-            }
+            },
+            payment_ref=ref,
+            provider=request.payment_method,
         )
 
 @router.post("/deduct", response_model=TokenUsageResponse)
@@ -195,6 +208,54 @@ async def get_transaction_history(user: User = Depends(get_current_user)):
                 "description": tx.description,
                 "created_at": tx.created_at.isoformat() if tx.created_at else None,
             } for tx in txs]
+        )
+
+@router.post("/mobile-payment", response_model=PurchaseResponse)
+async def mobile_payment(request: MobilePaymentRequest, user: User = Depends(get_current_user)):
+    async with get_session() as session:
+        result = await session.execute(select(TokenPackage).where(TokenPackage.id == request.package_id))
+        pkg = result.scalar_one_or_none()
+        if not pkg:
+            return PurchaseResponse(success=False, error="Package not found")
+
+        if request.provider not in ("orange", "mtn"):
+            return PurchaseResponse(success=False, error="Invalid payment provider")
+
+        ref = f"{request.provider.upper()}-{uuid4().hex[:12].upper()}"
+        phone = request.phone.strip()
+
+        logger.info(f"Mobile payment initiated: {ref} | {request.provider} | {phone} | {pkg.name} ({pkg.tokens} tokens)")
+
+        result = await session.execute(select(User).where(User.id == user.id))
+        db_user = result.scalar_one_or_none()
+        if not db_user:
+            return PurchaseResponse(success=False, error="User not found")
+
+        db_user.token_balance += pkg.tokens
+        db_user.total_tokens_purchased += pkg.tokens
+        tx = TokenTransaction(
+            user_id=db_user.id,
+            transaction_type=TransactionType.purchase.value,
+            amount=pkg.tokens,
+            balance_after=db_user.token_balance,
+            description=f"{request.provider.upper()} purchase: {pkg.name} ({pkg.tokens} tokens)",
+            stripe_payment_id=ref,
+        )
+        session.add(tx)
+        await session.commit()
+        await session.refresh(db_user)
+
+        return PurchaseResponse(
+            success=True,
+            transaction={
+                "id": tx.id,
+                "amount": tx.amount,
+                "balance_after": tx.balance_after,
+                "description": tx.description,
+                "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            },
+            payment_ref=ref,
+            provider=request.provider,
         )
 
 @router.post("/stripe-webhook")
