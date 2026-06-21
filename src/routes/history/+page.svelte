@@ -26,7 +26,10 @@
       const aData = await aRes.json();
       const sData = await sRes.json();
       if (aData.success) analyses = aData.analyses || [];
-      if (sData.success) stats = sData.stats || sData;
+      if (sData.success && sData.analyses?.length) {
+        const s = sData.analyses[0];
+        stats = { total_tokens: s.total_tokens_used || 0, total_analyses: s.total_analyses || 0, video_count: s.by_type?.video || 0, average_score: null };
+      }
     } catch { /* ignore */ }
     loading = false;
   });
