@@ -9,12 +9,15 @@
   import EngagementCurve from '$lib/components/charts/EngagementCurve.svelte';
   import RadarChart from '$lib/components/charts/RadarChart.svelte';
   import BrainViewer from '$lib/components/brain/BrainViewer.svelte';
+  import { goto } from '$app/navigation';
   import type { AnalysisResult } from '$lib/types/api';
 
   let result = $state<AnalysisResult | null>(null);
   let loading = $state(true);
   let brainMode = $state<'attention' | 'dopamine' | 'memory'>('attention');
   let id = $derived($page.params.id);
+
+  let mediaType = $state('');
 
   async function load() {
     loading = true;
@@ -23,13 +26,20 @@
       const data = await res.json();
       if (data.success) {
         const found = data.analyses.find((a: any) => a.id === id);
-        if (found?.results) result = found.results;
+        if (found?.results) {
+          result = found.results;
+          mediaType = found.media_type || found.results.media_type || '';
+        }
       }
     } catch { /* ignore */ }
     loading = false;
   }
 
   load();
+
+  function openInEditor() {
+    goto(`/editor?id=${id}`);
+  }
 </script>
 
 <div class="max-w-6xl mx-auto space-y-6">
@@ -40,9 +50,19 @@
   {:else if result}
     <div class="flex items-start gap-6">
       <GradeBadge grade={result.overall_grade} />
-      <div>
-        <h1 class="text-xl font-bold">{result.filename}</h1>
-        <p class="text-sm text-white/50">{result.summary}</p>
+      <div class="flex-1">
+        <div class="flex items-center gap-3">
+          <h1 class="text-xl font-bold">{result.filename}</h1>
+          {#if mediaType === 'video'}
+            <button onclick={openInEditor}
+              class="px-3 py-1.5 rounded-lg bg-neural-500/15 hover:bg-neural-500/25 text-neural-400 text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              Open in Editor
+            </button>
+          {/if}
+        </div>
+        <p class="text-sm text-white/50 mt-1">{result.summary}</p>
       </div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
