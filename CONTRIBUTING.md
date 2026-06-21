@@ -67,6 +67,11 @@ api/routers/analysis: add graceful brain_viz import fallback
 - Tests are not yet set up. If adding test coverage, place tests in a `tests/` directory mirroring the source structure.
 - The frontend proxies API requests; the backend must be running separately during frontend dev.
 - Generated files (brain_viz HTML, thumbnails, database, logs) are gitignored.
+- The frontend `/payment` page supports mobile money (Orange Money, MTN MoMo) and Stripe card. Test with the demo package endpoint via `/billing/packages`.
+- Card type detection (`src/lib/utils/card.ts`) runs client-side with zero dependencies. No API call is needed for validation.
+- GSAP animations must use `opacity-0` CSS classes + `gsap.to()` — never `gsap.from()` — to prevent SSR content flash.
+- Allowed billing proxy actions are maintained in `src/lib/utils/validation.ts`. When adding a new billing endpoint, add it to `ALLOWED_BILLING_ACTIONS`.
+- The billing proxy at `src/routes/api/billing/[action]/+server.ts` passes backend status codes through. A 402 status means insufficient tokens.
 
 ## License
 
