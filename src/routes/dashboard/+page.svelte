@@ -34,24 +34,27 @@
       const aData = await aRes.json();
       const sData = await sRes.json();
       if (aData.success) recentAnalyses = aData.analyses || [];
-      if (sData.success && sData.analyses?.length) stats = sData.analyses[0];
+      if (sData.success && sData.analyses?.length) {
+        const s = sData.analyses[0];
+        stats = { total: s.total_analyses || 0, tokens: s.total_tokens_used || 0, by_type: s.by_type || {}, avg_grade: s.avg_grade || '' };
+      }
     } catch { /* ignore */ }
     loading = false;
 
-    gsap.from('.dash-header', { opacity: 0, y: -20, duration: 0.6, ease: 'power3.out' });
-    gsap.from('.quick-action', {
-      opacity: 0, y: 30, scale: 0.95, duration: 0.5, stagger: 0.12, ease: 'back.out(1.4)',
+    gsap.to('.dash-header', { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' });
+    gsap.to('.quick-action', {
+      opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.12, ease: 'back.out(1.4)',
       delay: 0.2
     });
-    gsap.from('.stat-card', {
-      opacity: 0, y: 40, duration: 0.6, stagger: 0.1, ease: 'power3.out',
+    gsap.to('.stat-card', {
+      opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out',
       delay: 0.3
     });
   });
 </script>
 
 <div class="max-w-7xl mx-auto space-y-8">
-  <div class="dash-header flex flex-col md:flex-row md:items-center justify-between gap-4">
+  <div class="dash-header flex flex-col md:flex-row md:items-center justify-between gap-4 opacity-0 -translate-y-5">
     <div>
       <h1 class="text-2xl font-bold">{$_('dashboard.title')}</h1>
       <p class="text-white/50 mt-1">{$_('dashboard.welcome')}, {user?.name || 'Creator'}.</p>
@@ -68,7 +71,7 @@
 
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     {#each quickActions as item}
-      <a href={item.href} class="quick-action glass rounded-2xl p-5 card-hover flex items-center gap-4 group">
+      <a href={item.href} class="quick-action glass rounded-2xl p-5 card-hover flex items-center gap-4 group opacity-0 translate-y-[30px] scale-[0.95]">
         <div class="w-10 h-10 rounded-xl {item.bgClass} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
           <svg class="w-5 h-5 {item.textClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon}/></svg>
         </div>
@@ -78,19 +81,19 @@
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-    <Card class="stat-card">
+    <Card class="stat-card opacity-0 translate-y-[40px]">
       <p class="text-xs text-white/40 uppercase tracking-wider">{$_('dashboard.total_analyses')}</p>
       <p class="text-3xl font-bold mt-2 gradient-text"><AnimatedCounter value={stats.total || 0} /></p>
     </Card>
-    <Card class="stat-card">
+    <Card class="stat-card opacity-0 translate-y-[40px]">
       <p class="text-xs text-white/40 uppercase tracking-wider">{$_('dashboard.tokens_used')}</p>
       <p class="text-3xl font-bold mt-2 text-dopamine-400"><AnimatedCounter value={stats.tokens || 0} /></p>
     </Card>
-    <Card class="stat-card">
+    <Card class="stat-card opacity-0 translate-y-[40px]">
       <p class="text-xs text-white/40 uppercase tracking-wider">{$_('dashboard.avg_grade')}</p>
       <p class="text-3xl font-bold mt-2 {gradeColor(stats.avg_grade)}">{stats.avg_grade || '—'}</p>
     </Card>
-    <Card class="stat-card">
+    <Card class="stat-card opacity-0 translate-y-[40px]">
       <p class="text-xs text-white/40 uppercase tracking-wider">{$_('common.token_balance')}</p>
       <p class="text-3xl font-bold mt-2 text-dopamine-400"><AnimatedCounter value={user?.token_balance || 0} /></p>
     </Card>
