@@ -77,6 +77,7 @@ The platform operates in three tiers:
 
 ### 3D Brain Visualization
 - Interactive brain renderings using nilearn + fsaverage5 surface mesh
+- Full 70,000 voxel prediction (20,484 cortical + 49,516 subcortical)
 - Three.js 3D brain explorer with ROI atlas highlighting
 - Attention, dopamine, and memory mode overlays
 - MNI coordinate-space ROI mapping
@@ -300,7 +301,8 @@ All analysis endpoints require JWT authentication and deduct tokens.
 |--------|------|-------------|
 | GET | `/billing/packages` | List token packages |
 | GET | `/billing/balance` | Get token balance |
-| POST | `/billing/purchase` | Purchase token package |
+| POST | `/billing/purchase` | Purchase token package (Stripe card or mobile money) |
+| POST | `/billing/mobile-payment` | Mobile money payment (Orange Money / MTN MoMo) |
 | POST | `/billing/deduct` | Deduct tokens (internal) |
 | GET | `/billing/history` | Transaction history |
 | POST | `/billing/stripe-webhook` | Stripe webhook handler |
@@ -380,13 +382,15 @@ The `neuromarketing/` package is the heart of the platform.
 |------|---------|-------------|
 | **Local PyTorch** | `USE_REAL_TRIBE=true` + `tribev2` installed | Runs TRIBE v2 locally via PyTorch |
 | **Remote API** | `USE_REAL_TRIBE=true` + no local model | Calls HF Space REST API |
-| **Simulated** | `USE_REAL_TRIBE=false` (default) | Enhanced simulation using sinusoidal basis functions, hemodynamic lag, and ROI-specific signal maps |
+| **Aligned Simulation** | `USE_REAL_TRIBE=false` (default) | Advanced simulation using universal cortical basis, OR-thogonalized representations, canonical HRF deconvolution, full 70K voxel output, and subject-layer variability |
 
-The simulation generates realistic 20,484-vertex cortical activation patterns at 1Hz temporal resolution. It models:
+The simulation is architecturally aligned with the real TRIBE v2 paper across 5 stages:
 
-- **Video**: Motion intensity, scene complexity, and visual salience-based activation
-- **Audio**: Amplitude, speech confidence, and spectral energy-based patterns
-- **Text**: Word length, novelty, emotional content, and part-of-speech signals
+1. **Tri-modal Feature Encoding** — Content-aware feature extraction from video (motion, color diversity, scene complexity, temporal variance), audio (amplitude envelope, spectral centroid, rhythm, speech confidence), and text (word length, novelty, familiarity, emotional valence, syntactic complexity)
+2. **Universal Representation** — ROI-mean signals are projected through a 64-component orthogonal cortical basis (QR-decomposed sinusoids) producing a shared latent space across all modalities and stimuli
+3. **Subject Layer** — Per-subject gain scaling, ROI-specific modulation, and noise flooring enables zero-shot generalization simulation across 4 built-in subject profiles (`default`, `high_attention`, `high_dopamine`, `low_engagement`)
+4. **Full 70K Voxel Generation** — 20,484 cortical vertices (31 parcels across visual, auditory, language, attention, dopamine, memory, and somatomotor networks) + 49,516 subcortical voxels (thalamus, caudate, putamen, pallidum, brainstem, hippocampus, amygdala, accumbens)
+5. **Canonical HRF Deconvolution** — Pseudo-inverse hemodynamic response function deconvolution recovers the underlying neural signal from the simulated BOLD response (opposite direction of traditional forward convolution, matching real fMRI preprocessing)
 
 ### Neuromarketing Analyzer (`analyzer.py`)
 
@@ -513,6 +517,7 @@ The frontend is a **Svelte 5** application built with **SvelteKit 2**, **TypeScr
 | History | `/history` | Past analysis results |
 | Settings | `/settings` | User settings |
 | Pricing | `/pricing` | Token pricing plans |
+| Payment | `/payment` | 4-step payment wizard (method selection, card/mobile money) |
 | Terms | `/terms` | Terms of service |
 | Privacy | `/privacy` | Privacy policy |
 | Results | `/results/[id]` | Individual analysis detail view |
@@ -552,13 +557,35 @@ Custom component classes in `src/app.css`:
 ### Flow
 1. User registers → receives 100 free tokens
 2. Each API call deducts tokens based on operation type
-3. Users can purchase token packages via Stripe
+3. Users can purchase token packages via Stripe card or mobile money
 4. Transaction history is maintained for auditing
 
-### Stripe Integration
-- Checkout Sessions for one-time purchases
-- Webhook handler for fulfillment
+### Payment Methods
+
+#### Stripe Card
+- Checkout Sessions for one-time purchases via `/billing/purchase`
+- Webhook handler at `/billing/stripe-webhook` for fulfillment
+- Frontend redirects to `/payment?success=1` after successful checkout
 - Supports automatic fallback when Stripe is not configured
+
+#### Mobile Money (Orange Money / MTN MoMo)
+- African mobile money integration via `/billing/mobile-payment`
+- Accepts phone number with country code, operator selection, and amount
+- Generates unique payment reference with `MOB-` prefix
+- Token grant is applied immediately upon request (production would verify via Flutterwave/Paystack callback)
+
+#### Card Type Detection
+The frontend includes a zero-dependency card type detection utility at `src/lib/utils/card.ts`:
+
+| Feature | Implementation |
+|---------|---------------|
+| Type Detection | Regex patterns for Visa, Mastercard, Amex, Discover, JCB, UnionPay |
+| Validation | Luhn algorithm for card number checksum verification |
+| Formatting | Auto-spacing with max digits per card type (16-19) |
+| Expiry | MM/YY formatting with month range validation (01-12) |
+| CVC | 3-4 digit validation based on card type |
+| Phone | International phone number validation for mobile money |
+| Visuals | SVG card brand logos rendered inline
 
 ---
 
@@ -649,6 +676,39 @@ npm run check        # type-check with svelte-check
 ```
 
 The backend API must be running separately (see [Run the Server](#run-the-server)). The frontend dev server proxies API requests through SvelteKit's server hooks when needed.
+
+#### GSAP Animation Pattern
+
+To prevent SSR flash (content briefly visible before JS runs), all GSAP animations use the `opacity-0` CSS pattern:
+
+```svelte
+<!-- Element starts invisible via CSS -->
+<div class="opacity-0" data-animate="fade-up">
+  Content
+</div>
+```
+
+```js
+// GSAP animates to visible on mount
+gsap.to('[data-animate="fade-up"]', {
+  opacity: 1,
+  y: 0,
+  duration: 0.8,
+  stagger: 0.15
+});
+```
+
+This avoids `gsap.from()` which causes visible flash on SSR-rendered content. All animated pages (dashboard, analyze, pricing, payment) follow this pattern.
+
+#### API Proxy Pattern
+
+SvelteKit server routes at `src/routes/api/analyze/[type]/+server.ts` and `src/routes/api/billing/[action]/+server.ts` proxy requests to the FastAPI backend:
+
+- Allowed billing actions are validated against `ALLOWED_BILLING_ACTIONS` in `src/lib/utils/validation.ts`
+- Backend HTTP status codes (400, 401, 402, 404, 500) are passed through unmodified
+- Errors are caught and returned as 502 with the backend error message
+- File uploads use `FormData` forwarding with correct content-type passthrough
+- AB test mode is handled via a `mode` field in the request body (`text`, `video`, `audio`)
 
 ### Gitignore
 
