@@ -615,7 +615,7 @@
 </script>
 
 <div class="brain-viewer-wrap">
-  <div bind:this={container} class="w-full h-full min-h-[400px] rounded-2xl overflow-hidden relative">
+  <div bind:this={container} class="w-full h-full rounded-2xl overflow-hidden relative">
     {#if isLoading}
       <div class="loading-overlay">
         <div class="loading-brain">
