@@ -12,6 +12,18 @@
 
   let heroEl: HTMLDivElement;
   let statsEl: HTMLElement;
+  let videoEls: HTMLVideoElement[] = [];
+  let activeVideo = $state(0);
+
+  const videos = [
+    { src: '/brain/253879_medium.mp4', label: 'brain' },
+    { src: '/brain/143567-782758325_medium.mp4', label: 'neurons' },
+    { src: '/brain/159049-818026306_medium.mp4', label: 'network' },
+  ];
+
+  function nextVideo() {
+    activeVideo = (activeVideo + 1) % videos.length;
+  }
 
   onMount(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -21,11 +33,22 @@
       .from('.hero-title-line', { opacity: 0, x: -80, duration: 0.8, stagger: 0.15 }, '-=0.3')
       .from('.hero-sub', { opacity: 0, y: 30, duration: 0.8 }, '-=0.5')
       .from('.hero-cta > *', { opacity: 0, y: 20, duration: 0.5, stagger: 0.15 }, '-=0.3')
-      .from('.brain-orb-outer', { opacity: 0, scale: 0.3, rotate: -180, duration: 1.2, ease: 'back.out(1.7)' }, '-=0.8')
       .from('.hero-glow-1', { opacity: 0, scale: 0, duration: 0.8 }, '-=0.5');
 
+    if (videoEls[0]) {
+      videoEls[0].play();
+    }
+  });
+
+  $effect(() => {
+    const idx = activeVideo;
+    if (videoEls[idx]) {
+      videoEls[idx].play();
+    }
+  });
+
+  onMount(() => {
     gsap.utils.toArray<HTMLElement>('[data-morph]').forEach((el) => {
-      const morphs = ['translateY(-5px)', 'translateY(5px)', 'translateX(-3px) translateY(-3px)', 'translateX(3px) translateY(3px)'];
       gsap.to(el, {
         y: () => gsap.utils.random(-8, 8),
         x: () => gsap.utils.random(-6, 6),
@@ -112,17 +135,33 @@
       </div>
     </div>
     <div class="flex-1 flex justify-center relative">
-      <div class="brain-orb-outer relative w-72 h-72 md:w-96 md:h-96">
-        <div class="absolute inset-0 rounded-full bg-gradient-to-br from-neural-500/20 via-dopamine-500/10 to-memory-500/20 animate-pulse-slow blur-3xl"></div>
-        <div class="absolute inset-4 rounded-full bg-gradient-to-br from-neural-500/30 via-dopamine-500/20 to-memory-500/30 animate-float blur-2xl"></div>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <svg class="w-32 h-32 md:w-44 md:h-44 text-neural-400/80 animate-float" style="animation-delay: -1.5s;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="0.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-          </svg>
+      <div class="relative w-72 h-72 md:w-96 md:h-96">
+        <!-- Glow layers on top of video -->
+        <div class="absolute inset-0 rounded-full bg-gradient-to-br from-neural-500/20 via-dopamine-500/10 to-memory-500/20 animate-pulse-slow blur-3xl z-10 pointer-events-none"></div>
+        <div class="absolute inset-4 rounded-full bg-gradient-to-br from-neural-500/30 via-dopamine-500/20 to-memory-500/30 animate-float blur-2xl z-10 pointer-events-none"></div>
+
+        <!-- Video carousel -->
+        <div class="absolute inset-0 rounded-full overflow-hidden z-0 ring-1 ring-white/5">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-[1] pointer-events-none"></div>
+          {#each videos as v, i}
+            <video
+              class="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+              class:opacity-100={activeVideo === i}
+              class:opacity-0={activeVideo !== i}
+              src={v.src}
+              muted
+              playsinline
+              preload="metadata"
+              bind:this={videoEls[i]}
+              onended={nextVideo}
+              style="pointer-events: none;"
+            ></video>
+          {/each}
         </div>
+
         {#each [0, 1, 2] as i}
           <div
-            class="absolute inset-0 rounded-full border border-neural-500/10"
+            class="absolute inset-0 rounded-full border border-neural-500/10 z-20 pointer-events-none"
             style="animation: ripple-expand 3s {i * 0.8}s ease-out infinite;"
           ></div>
         {/each}
