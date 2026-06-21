@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from neuromarketing.models import MediaType
 
 
@@ -33,5 +33,5 @@ class AnalysisResponse(BaseModel):
 
 class BatchAnalysisResponse(BaseModel):
     success: bool
-    data: Optional[List[Dict[str, Any]]] = None
+    data: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
     error: Optional[str] = None
