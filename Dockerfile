@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --user --no-warn-script-location \
+RUN pip install --no-warn-script-location \
     gunicorn==23.0.0 \
     -r requirements.txt
 
@@ -45,10 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY --from=builder /root/.local /root/.local
-COPY --from=builder /root/.local /home/app/.local
-
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /usr/local /usr/local
 
 RUN mkdir -p /app/uploads /app/cache /app/frontend/thumbnails /app/frontend/brain_viz \
     && chown -R app:app /app
@@ -62,18 +59,16 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-CMD exec gunicorn ${APP_MODULE} \
+CMD exec gunicorn api.main:app \
     --worker-class uvicorn.workers.UvicornWorker \
-    --workers ${WORKERS} \
-    --bind 0.0.0.0:${PORT} \
-    --timeout ${TIMEOUT} \
-    --keep-alive ${KEEP_ALIVE} \
-    --max-requests ${MAX_REQUESTS} \
-    --max-requests-jitter ${MAX_REQUESTS_JITTER} \
+    --workers $WORKERS \
+    --bind 0.0.0.0:$PORT \
+    --timeout $TIMEOUT \
+    --keep-alive $KEEP_ALIVE \
+    --max-requests $MAX_REQUESTS \
+    --max-requests-jitter $MAX_REQUESTS_JITTER \
     --access-logfile - \
     --error-logfile - \
-    --log-level ${LOG_LEVEL} \
-    --forwarded-allow-ips='*' \
-    --proxy-protocol \
-    --proxy-allow-from='*' \
+    --log-level $LOG_LEVEL \
+    --forwarded-allow-ips '*' \
     --graceful-timeout 30
