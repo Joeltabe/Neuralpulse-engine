@@ -55,6 +55,9 @@ NeuralPulse Engine is a **computational neuromarketing platform** split across t
 
 The frontend delivers a **luxury glassmorphism UI** with 3D brain visualization, real-time neural analytics, and full ad creative management — all proxied through SvelteKit server routes so the backend stays hidden from browsers.
 
+NeuralPulse Engine is a computational neuromarketing platform. You upload a video, audio, or text ad creative; the backend runs it through TRIBE v2 — a brain simulation engine that models fMRI-like cortical activation — and returns scores across attention, dopamine reward, and memory encoding dimensions. The frontend visualizes those results as 3D brain heatmaps, temporal engagement charts, ROI matrices, and virality gauges.
+
+The system also supports multi-variant A/B testing with statistical significance tests (t-test, Cohen's d, Bonferroni correction), neural copy analysis across nine persuasion framings, AI thumbnail generation with predicted CTR forecasts, and full report export.
 ---
 
 ## Features — Per Page
