@@ -1,7 +1,7 @@
 # ============================================================
 # Stage 1: Python dependencies
 # ============================================================
-FROM python:3.14-slim AS builder
+FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -22,7 +22,7 @@ RUN pip install --user --no-warn-script-location \
 # ============================================================
 # Stage 2: Runtime image
 # ============================================================
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
