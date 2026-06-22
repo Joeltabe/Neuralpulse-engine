@@ -8,17 +8,6 @@ node_modules/
 build/
 dist/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
-dist/
-build/
-.eggs/
-*.egg
-
 # Environment
 .env
 .env.local
@@ -33,21 +22,6 @@ build/
 .DS_Store
 Thumbs.db
 
-# Project specific
-*.db
-*.db-journal
-uploads/*
-!uploads/.gitkeep
-cache/*
-!cache/.gitkeep
-models/*
-!models/.gitkeep
-frontend/thumbnails/
-frontend/brain_viz/
-server*.log
-server*.err
-build-log.txt
-
 # Vercel deploy artifacts
 .vercel/
 
@@ -57,7 +31,3 @@ build-log.txt
 # Logs
 *.log
 npm-debug.log*
-
-# Docker
-.containerenv
-.env.production
