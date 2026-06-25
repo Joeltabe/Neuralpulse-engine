@@ -35,5 +35,21 @@
   ],
   "redirects": [
     { "source": "/app/(.*)", "destination": "/$1", "permanent": true }
-  ]
+  ],
+  "functions": {
+    "api/analyze/[type].func": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "bodySizeLimit": "500mb"
+    },
+    "api/authenticity/[action].func": {
+      "memory": 512,
+      "bodySizeLimit": "500mb"
+    },
+    "api/thumbnail/[action].func": {
+      "memory": 1024,
+      "maxDuration": 60,
+      "bodySizeLimit": "500mb"
+    }
+  }
 }
