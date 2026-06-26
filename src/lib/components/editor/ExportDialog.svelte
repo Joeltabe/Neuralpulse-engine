@@ -1,6 +1,6 @@
 <script lang="ts">
   import { isExporting, exportProgress, ffmpegLoaded, duration, trimStart, trimEnd, cuts, videoFile } from '$lib/editor/state'
-  import { loadFFmpeg, exportVideo } from '$lib/editor/ffmpeg'
+  import { loadFFmpeg, exportVideo, type ExportOptions } from '$lib/editor/ffmpeg'
 
   let subs: (() => void)[] = []
   let isExp = false
@@ -26,6 +26,38 @@
 
   let show = $state(false)
 
+  let format = $state<ExportOptions['format']>('mp4')
+  let resolution = $state<ExportOptions['resolution']>('source')
+  let quality = $state<ExportOptions['quality']>('medium')
+  let preset = $state('fast')
+
+  const PRESETS: Record<string, Partial<ExportOptions>> = {
+    'high-quality': { quality: 'high', preset: 'slow', resolution: 'source' },
+    'small-file': { quality: 'low', preset: 'fast', resolution: '720p' },
+    youtube: { quality: 'high', preset: 'medium', resolution: '1080p' },
+    social: { quality: 'medium', preset: 'fast', resolution: '720p' },
+  }
+
+  function applyPreset(name: string) {
+    const p = PRESETS[name]
+    if (!p) return
+    if (p.quality) quality = p.quality
+    if (p.preset) preset = p.preset
+    if (p.resolution) resolution = p.resolution
+  }
+
+  let estimatedSize = $derived.by(() => {
+    const dur = vidTrimEnd - vidTrimStart
+    if (dur <= 0) return '—'
+    const qualityFactors: Record<string, number> = { high: 1.5, medium: 1.0, low: 0.5 }
+    const resolutionFactors: Record<string, number> = { source: 1.0, '1080p': 1.0, '720p': 0.5, '480p': 0.3 }
+    const formatFactors: Record<string, number> = { mp4: 1.0, webm: 0.9, gif: 0.3 }
+    const mbPerSec = 0.5 * (qualityFactors[quality] || 1) * (resolutionFactors[resolution] || 1) * (formatFactors[format] || 1)
+    const mb = dur * mbPerSec
+    if (mb < 1) return `${Math.round(mb * 1000)} KB`
+    return `${mb.toFixed(1)} MB`
+  })
+
   async function handleExport() {
     if (!vidFile) return
     isExporting.set(true)
@@ -42,13 +74,16 @@
         vidTrimStart,
         vidTrimEnd,
         editorCuts,
+        { format, resolution, quality, preset },
         (p: number) => exportProgress.set(p),
       )
 
+      const ext = format === 'webm' ? 'webm' : format === 'gif' ? 'gif' : 'mp4'
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
+      const baseName = vidFile.name.replace(/\.[^.]+$/, '')
       a.href = url
-      a.download = `neural-optimized-${vidFile.name}`
+      a.download = `neural-optimized-${baseName}.${ext}`
       a.click()
       URL.revokeObjectURL(url)
     } catch (err) {
@@ -85,31 +120,85 @@
     Exporting {progress}%
   {:else}
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-    Export Video
+    Export
   {/if}
 </button>
 
 {#if show}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onclick={() => show = false}>
-    <div class="glass-strong rounded-2xl p-6 max-w-md w-full mx-4" onclick={(e) => e.stopPropagation()}>
+    <div class="glass-strong rounded-2xl p-6 max-w-lg w-full mx-4" onclick={(e) => e.stopPropagation()}>
       <h3 class="text-lg font-semibold mb-4">Export Video</h3>
 
+      <!-- Presets -->
+      <div class="mb-4">
+        <p class="text-xs text-white/40 mb-2">Quick presets</p>
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick={() => applyPreset('high-quality')}
+            class="py-2 px-2 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/80 transition-colors text-center leading-tight">High<br/>Quality</button>
+          <button onclick={() => applyPreset('small-file')}
+            class="py-2 px-2 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/80 transition-colors text-center leading-tight">Small<br/>File</button>
+          <button onclick={() => applyPreset('youtube')}
+            class="py-2 px-2 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/80 transition-colors text-center leading-tight">YouTube</button>
+          <button onclick={() => applyPreset('social')}
+            class="py-2 px-2 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/80 transition-colors text-center leading-tight">Social<br/>Media</button>
+        </div>
+      </div>
+
+      <!-- Format selection -->
       <div class="space-y-3 mb-6">
-        <div class="flex justify-between text-sm">
-          <span class="text-white/50">Duration</span>
-          <span class="font-mono">{formatTime(vidTrimEnd - vidTrimStart)}</span>
+        <div>
+          <p class="text-xs text-white/40 mb-1.5">Format</p>
+          <div class="flex gap-2">
+            {#each ['mp4', 'webm', 'gif'] as fmt}
+              <button
+                onclick={() => format = fmt as ExportOptions['format']}
+                class={"flex-1 py-2 rounded-lg text-xs font-medium transition-colors " + (format === fmt ? 'bg-neural-500/20 text-neural-400 border border-neural-500/30' : 'bg-white/5 text-white/50 hover:bg-white/10 border border-transparent')}
+              >{fmt.toUpperCase()}</button>
+            {/each}
+          </div>
         </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-white/50">Trim range</span>
-          <span class="font-mono">{formatTime(vidTrimStart)} — {formatTime(vidTrimEnd)}</span>
+
+        <div>
+          <p class="text-xs text-white/40 mb-1.5">Resolution</p>
+          <div class="flex gap-2">
+            {#each [{ value: 'source', label: 'Source' }, { value: '1080p', label: '1080p' }, { value: '720p', label: '720p' }, { value: '480p', label: '480p' }] as res}
+              <button
+                onclick={() => resolution = res.value as ExportOptions['resolution']}
+                class={"flex-1 py-2 rounded-lg text-xs font-medium transition-colors " + (resolution === res.value ? 'bg-neural-500/20 text-neural-400 border border-neural-500/30' : 'bg-white/5 text-white/50 hover:bg-white/10 border border-transparent')}
+              >{res.label}</button>
+            {/each}
+          </div>
         </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-white/50">Cuts applied</span>
-          <span class="font-mono">{editorCuts.filter(c => c.enabled).length}</span>
+
+        <div>
+          <p class="text-xs text-white/40 mb-1.5">Quality</p>
+          <div class="flex gap-2">
+            {#each [{ value: 'high', label: 'High' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' }] as q}
+              <button
+                onclick={() => quality = q.value as ExportOptions['quality']}
+                class={"flex-1 py-2 rounded-lg text-xs font-medium transition-colors " + (quality === q.value ? 'bg-neural-500/20 text-neural-400 border border-neural-500/30' : 'bg-white/5 text-white/50 hover:bg-white/10 border border-transparent')}
+              >{q.label}</button>
+            {/each}
+          </div>
         </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-white/50">Format</span>
-          <span class="font-mono">MP4 (H.264)</span>
+
+        <div class="border-t border-white/5 pt-3 space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-white/50">Duration</span>
+            <span class="font-mono">{formatTime(vidTrimEnd - vidTrimStart)}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-white/50">Trim range</span>
+            <span class="font-mono">{formatTime(vidTrimStart)} — {formatTime(vidTrimEnd)}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-white/50">Cuts applied</span>
+            <span class="font-mono">{editorCuts.filter(c => c.enabled).length}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-white/50">Est. size</span>
+            <span class="font-mono">{estimatedSize}</span>
+          </div>
         </div>
       </div>
 

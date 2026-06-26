@@ -29,6 +29,8 @@ export const cuts = writable<EditorCut[]>([])
 export const isExporting = writable(false)
 export const exportProgress = writable(0)
 export const ffmpegLoaded = writable(false)
+export const transcriptSegments = writable<{ start: number; end: number; text: string; attention_score: number }[]>([])
+export const wordLevelScores = writable<{ word: string; timestamp: number; attention: number; dopamine: number; memory: number }[]>([])
 
 export const visibleRange = derived([zoom, duration], ([$zoom, $duration]) => {
   const range = $duration / Math.max($zoom, 0.1)
@@ -61,4 +63,6 @@ export function resetEditor() {
   cuts.set([])
   isExporting.set(false)
   exportProgress.set(0)
+  transcriptSegments.set([])
+  wordLevelScores.set([])
 }

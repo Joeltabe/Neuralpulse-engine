@@ -8,14 +8,20 @@
   import RecommendationsPanel from '$lib/components/editor/RecommendationsPanel.svelte'
   import ExportDialog from '$lib/components/editor/ExportDialog.svelte'
   import type { AnalysisResponse } from '$lib/types/api'
+  import TranscriptEditor from '$lib/components/editor/TranscriptEditor.svelte'
+  import { transcriptSegments, wordLevelScores } from '$lib/editor/state'
 
   let loading = $state(true)
   let error = $state('')
   let title = $state('Video Editor')
-  let activeTab = $state<'recommendations' | 'cuts'>('recommendations')
+  let activeTab = $state<'recommendations' | 'cuts' | 'transcript'>('recommendations')
 
   let currentRecs: any[] = []
   recommendations.subscribe(v => currentRecs = v)
+  let currentTranscripts: any[] = []
+  transcriptSegments.subscribe(v => currentTranscripts = v)
+  let transcriptCount = $state(0)
+  transcriptSegments.subscribe(v => transcriptCount = v.length)
 
   onMount(async () => {
     const params = $page.url.searchParams
@@ -76,6 +82,8 @@
     engagementCurve.set(result.engagement_curve || [])
     timestampAxis.set(result.timestamp_axis || [])
     recommendations.set(result.recommendations || [])
+    transcriptSegments.set(result.transcript_segments || [])
+    wordLevelScores.set(result.word_level_scores || [])
 
     const breaks: any[] = (result.scene_breaks || []).map((t: number) => ({
       time: t,
@@ -159,12 +167,18 @@
           >
             Cuts & Edits
           </button>
+          <button
+            onclick={() => activeTab = 'transcript'}
+            class="flex-1 py-2.5 text-xs font-medium transition-colors {activeTab === 'transcript' ? 'text-white/80 border-b-2 border-neural-500' : 'text-white/30 border-b-2 border-b-transparent'}"
+          >
+            Transcript ({currentTranscripts.length})
+          </button>
         </div>
 
         <div class="flex-1 overflow-hidden">
           {#if activeTab === 'recommendations'}
             <RecommendationsPanel />
-          {:else}
+          {:else if activeTab === 'cuts'}
             <div class="p-4 space-y-2">
               {#each $cuts as cut, i}
                 <label class="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] hover:bg-white/5 transition-colors cursor-pointer">
@@ -178,6 +192,8 @@
                 <p class="text-sm text-white/30 text-center py-8">No cuts defined yet. Recommendations will suggest cut points automatically.</p>
               {/each}
             </div>
+          {:else}
+            <TranscriptEditor />
           {/if}
         </div>
       </div>
