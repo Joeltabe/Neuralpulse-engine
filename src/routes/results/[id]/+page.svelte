@@ -9,6 +9,7 @@
   import EngagementCurve from '$lib/components/charts/EngagementCurve.svelte';
   import RadarChart from '$lib/components/charts/RadarChart.svelte';
   import BrainViewer from '$lib/components/brain/BrainViewer.svelte';
+  import VideoTimelineResult from '$lib/components/analysis/VideoTimelineResult.svelte';
   import { goto } from '$app/navigation';
   import type { AnalysisResult } from '$lib/types/api';
 
@@ -65,6 +66,19 @@
         <p class="text-sm text-white/50 mt-1">{result.summary}</p>
       </div>
     </div>
+
+    {#if mediaType === 'video'}
+      <Card>
+        <VideoTimelineResult
+          analysisId={id}
+          recommendations={result.recommendations}
+          engagementCurve={result.engagement_curve}
+          timestampAxis={result.timestamp_axis}
+          sceneBreaks={result.scene_breaks || []}
+        />
+      </Card>
+    {/if}
+
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <ScoreCard label={$_('common.attention')} value={result.brain_scores.attention.overall} color="#4d6cf5" />
       <ScoreCard label={$_('common.dopamine')} value={result.brain_scores.dopamine.overall} color="#f59e0b" />

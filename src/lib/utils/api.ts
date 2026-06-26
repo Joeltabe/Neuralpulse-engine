@@ -6,8 +6,15 @@ const TIMEOUT_MS = 120_000;
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
-  token?: string | null
-): Promise<T> {
+  token?: string | null,
+  rawResponse?: false,
+): Promise<T>;
+export async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  token?: string | null,
+  rawResponse?: boolean,
+): Promise<T | Response> {
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
@@ -33,6 +40,7 @@ export async function apiFetch<T>(
       throw new Error(body.error || `Request failed: ${res.status}`);
     }
 
+    if (rawResponse) return res;
     return res.json();
   } finally {
     clearTimeout(timeoutId);
