@@ -4,7 +4,7 @@
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-  let { roiScores = {} as Record<string, number>, mode = 'attention', autoRotate = true } = $props();
+  let { roiScores = {} as Record<string, number>, mode = 'attention', autoRotate = true, highlightRegion = '', xrayLevel = 0 } = $props();
 
   let container: HTMLDivElement;
   let scene: THREE.Scene;
@@ -112,35 +112,66 @@
   // fMRI ACTIVATION COLORMAP
   // dark tissue → deep red → orange → bright yellow → white-hot
   // ================================================================
-  function activationToColor(activity: number, baseGray: number): THREE.Color {
-    if (activity < 0.10) {
-      return new THREE.Color(baseGray, baseGray, baseGray * 0.97);
-    }
-    const t = Math.min(1, (activity - 0.10) / 0.90);
-    let r: number, g: number, b: number;
+  // Activation threshold — below this, regions go transparent
+  const ACTIVATION_TRANSPARENT_BELOW = 0.25;
+  const ACTIVATION_FULL_ABOVE = 0.45;
 
-    if (t < 0.25) {
-      const k = t / 0.25;
-      r = baseGray + k * (0.55 - baseGray);
-      g = baseGray * (1 - k * 0.7);
-      b = baseGray * (1 - k * 0.85);
-    } else if (t < 0.5) {
-      const k = (t - 0.25) / 0.25;
-      r = 0.55 + k * 0.45;
-      g = baseGray * 0.3 + k * 0.45;
-      b = baseGray * 0.15 * (1 - k);
-    } else if (t < 0.75) {
-      const k = (t - 0.5) / 0.25;
-      r = 1.0;
-      g = 0.45 + k * 0.45;
-      b = k * 0.1;
-    } else {
-      const k = (t - 0.75) / 0.25;
-      r = 1.0;
-      g = 0.9 + k * 0.1;
-      b = 0.1 + k * 0.55;
+  function activationToColor(activity: number, baseGray: number, targetRGB: [number, number, number]): THREE.Color {
+    // Raise the threshold: anything below 0.35 is strictly unaffected (grey)
+    if (activity < 0.35) {
+      return new THREE.Color(baseGray, baseGray, baseGray);
     }
-    return new THREE.Color(Math.min(1, r), Math.min(1, g), Math.min(1, b));
+    
+    // Fade-in zone for the transition (0.35 to 0.45)
+    const colorIntensity = Math.min(1, (activity - 0.35) / 0.10); 
+    
+    // activeLevel from 0 to 1 (representing 0.35 to 1.0 activation)
+    const activeLevel = Math.min(1, (activity - 0.35) / 0.65);
+    
+    // The user wants: most affected = darker, least affected = lighter.
+    let r, g, b;
+    
+    // We will blend between a Light Pastel (least affected) and a Deep Dark Color (most affected)
+    
+    // 1. Light Color (mixed with 60% white, boosted brightness)
+    const lightR = 1.0 * 0.6 + (targetRGB[0] * 1.5) * 0.4;
+    const lightG = 1.0 * 0.6 + (targetRGB[1] * 1.5) * 0.4;
+    const lightB = 1.0 * 0.6 + (targetRGB[2] * 1.5) * 0.4;
+    
+    // 2. Dark Color (deeply shaded, 55% brightness of the pure color to retain 3D texture)
+    const darkR = targetRGB[0] * 0.55;
+    const darkG = targetRGB[1] * 0.55;
+    const darkB = targetRGB[2] * 0.55;
+    
+    // Interpolate directly from Light to Dark based on activeLevel
+    r = lightR * (1 - activeLevel) + darkR * activeLevel;
+    g = lightG * (1 - activeLevel) + darkG * activeLevel;
+    b = lightB * (1 - activeLevel) + darkB * activeLevel;
+    
+    // Mix pure gray with the mapped color based on the fade-in zone
+    const finalR = baseGray * (1 - colorIntensity) + r * colorIntensity;
+    const finalG = baseGray * (1 - colorIntensity) + g * colorIntensity;
+    const finalB = baseGray * (1 - colorIntensity) + b * colorIntensity;
+
+    return new THREE.Color(Math.min(1, finalR), Math.min(1, finalG), Math.min(1, finalB));
+  }
+
+  function activationToOpacity(activity: number): number {
+    if (xrayLevel <= 0.01) return 1.0; // default opaque when xray is off
+    
+    let targetOpacity = 1.0;
+    if (activity < ACTIVATION_TRANSPARENT_BELOW) {
+      // Glass-like transparency: 0.06 - 0.12
+      targetOpacity = 0.06 + (activity / ACTIVATION_TRANSPARENT_BELOW) * 0.06;
+    } else if (activity < ACTIVATION_FULL_ABOVE) {
+      // Smooth transition zone
+      const t = (activity - ACTIVATION_TRANSPARENT_BELOW) / (ACTIVATION_FULL_ABOVE - ACTIVATION_TRANSPARENT_BELOW);
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      targetOpacity = 0.12 + eased * 0.83;
+    }
+    
+    // Blend between normal opacity (1.0) and xray target opacity based on slider
+    return 1.0 - (1.0 - targetOpacity) * xrayLevel;
   }
 
   // ================================================================
@@ -151,7 +182,8 @@
     const baseGray = REGION_BASE_GRAY[regionName] ?? 0.60;
     const rimColor = MODE_RIM_COLORS[mode] ?? MODE_RIM_COLORS.attention;
     const activation = currentActivations.get(regionName) ?? 0;
-    const color = activationToColor(activation, baseGray);
+    const color = activationToColor(activation, baseGray, rimColor);
+    const opacity = activationToOpacity(activation);
 
     return new THREE.ShaderMaterial({
       uniforms: {
@@ -161,7 +193,10 @@
         uTime: { value: 0.0 },
         uActivation: { value: activation },
         uHovered: { value: 0.0 },
+        uHighlighted: { value: 0.0 },
         uBaseGray: { value: baseGray },
+        uOpacity: { value: opacity },
+        uXrayLevel: { value: xrayLevel },
         lightDir: { value: new THREE.Vector3(0.5, 0.8, 0.6).normalize() },
         lightDir2: { value: new THREE.Vector3(-0.4, -0.2, -0.8).normalize() }
       },
@@ -184,7 +219,10 @@
         uniform float uTime;
         uniform float uActivation;
         uniform float uHovered;
+        uniform float uHighlighted;
         uniform float uBaseGray;
+        uniform float uOpacity;
+        uniform float uXrayLevel;
         uniform vec3 lightDir;
         uniform vec3 lightDir2;
         varying vec3 vNormal;
@@ -194,7 +232,44 @@
         void main() {
           vec3 normal = normalize(vNormal);
           vec3 viewDir = normalize(-vPosition);
+          float fresnel = pow(max(1.0 - abs(dot(normal, viewDir)), 0.0), uRimPower);
 
+          // ────── TRANSPARENT GLASS MODE (inactive regions when X-Ray is on) ──────
+          float isGlassBase = step(uActivation, 0.25) * (1.0 - uHighlighted);
+          
+          // We compute both glass color and lit color, then mix based on uXrayLevel
+          // Glass material: mostly transparent, with edge glow for structure
+          float edgeGlow = pow(fresnel, 1.8);
+          vec3 glassColor = vec3(0.55, 0.65, 0.80); // cool blue-gray glass
+          vec3 glassEdge = uRimColor * 0.3 + vec3(0.4, 0.5, 0.6) * 0.7;
+
+          // Faint specular highlight so you see the surface exists
+          vec3 glassHalfDir = normalize(lightDir + viewDir);
+          float glassSpec = pow(max(dot(normal, glassHalfDir), 0.0), 80.0) * 0.5;
+
+          // Subtle refraction-like color shift
+          float iriShift = sin(dot(vWorldPosition, vec3(1.0, 2.0, 1.5)) * 3.0 + uTime * 0.5) * 0.02;
+
+          vec3 finalGlass = glassEdge * edgeGlow * 0.7;
+          finalGlass += vec3(glassSpec) * vec3(0.8, 0.85, 1.0);
+          finalGlass += glassColor * 0.04;
+          finalGlass += vec3(iriShift);
+
+          // Glass opacity: mostly transparent but edges visible
+          float glassAlpha = edgeGlow * 0.35 + 0.04;
+
+          // Hover on glass region still shows it slightly
+          glassAlpha += uHovered * 0.15;
+          finalGlass += vec3(uHovered * 0.1) * uRimColor;
+
+          // ────── TRANSITION ZONE (semi-transparent, color bleeding in) ──────
+          float transitionBlend = 0.0;
+          if (uActivation > 0.25 && uActivation < 0.45) {
+            transitionBlend = (uActivation - 0.25) / 0.20;
+            transitionBlend = transitionBlend * transitionBlend * (3.0 - 2.0 * transitionBlend); // smoothstep
+          }
+
+          // ────── FULL ACTIVATED REGION (vivid fMRI heatmap) ──────
           // Diffuse lighting (two-light rig)
           float diff1 = max(dot(normal, lightDir), 0.0);
           float diff2 = max(dot(normal, lightDir2), 0.0) * 0.35;
@@ -211,12 +286,20 @@
           vec3 sssColor = vec3(0.85, 0.45, 0.35) * sssWrap * 0.12 * uActivation;
 
           // Rim / Fresnel glow
-          float fresnel = pow(1.0 - abs(dot(normal, viewDir)), uRimPower);
-          vec3 rimContrib = uRimColor * fresnel * (0.35 + uActivation * 0.35);
+          float rimStrength = 0.45;
+          rimStrength += uActivation * 0.15 * uXrayLevel; // extra glow only when showing xray
+          
+          // Blend rim color from neutral gray (inactive) to colored (active)
+          vec3 inactiveRimColor = vec3(0.45); 
+          vec3 effectiveRimColor = mix(inactiveRimColor, uRimColor, smoothstep(0.05, 0.3, uActivation));
+          vec3 rimContrib = effectiveRimColor * fresnel * rimStrength;
 
-          // Pulsing emission on active regions
-          float pulse = sin(uTime * 2.0 + uActivation * 5.0) * 0.08 + sin(uTime * 3.5) * 0.04;
-          float emissive = uActivation * (0.12 + pulse * uActivation);
+          // Remove emissive pulse to ensure highly active areas stay dark as requested
+          float emissive = 0.0;
+
+          // Highlight glow (when recommendation selects this region)
+          float highlightPulse = sin(uTime * 3.0) * 0.15 + 0.85;
+          float highlightGlow = uHighlighted * 0.35 * highlightPulse;
 
           // Hover highlight
           float hoverGlow = uHovered * 0.18;
@@ -224,19 +307,42 @@
           // Combine
           vec3 litColor = uBaseColor * (0.28 + diffuse * 0.72);
           litColor += sssColor;
-          litColor += vec3(spec + spec2) * vec3(1.0, 0.95, 0.9);
+          
+          vec3 specTint = mix(vec3(1.0), vec3(1.0, 0.95, 0.9), uActivation);
+          litColor += vec3(spec + spec2) * specTint;
+          
           litColor += rimContrib;
           litColor += uBaseColor * emissive;
           litColor += vec3(hoverGlow) * uRimColor;
+          litColor += vec3(highlightGlow) * uRimColor;
 
-          // Slight warm tint
-          litColor *= vec3(1.02, 1.0, 0.97);
+          // Slight warm tint only applied to active areas to keep inactive areas pure gray
+          vec3 warmTint = mix(vec3(1.0), vec3(1.02, 1.0, 0.97), uActivation);
+          litColor *= warmTint;
 
-          gl_FragColor = vec4(litColor, 0.97);
+
+
+          // Now mix the final rendered color between normal litColor and glass based on uXrayLevel
+          vec4 normalState = vec4(litColor, 1.0);
+          vec4 glassState;
+          
+          if (isGlassBase > 0.5) {
+             glassState = vec4(finalGlass, glassAlpha);
+          } else {
+             glassState = vec4(litColor, uOpacity); // uOpacity handles the alpha curve
+          }
+          
+          vec4 finalOutput = mix(normalState, glassState, uXrayLevel);
+
+          // Highlighted regions always override to full opacity
+          finalOutput.a = max(finalOutput.a, uHighlighted * 0.95);
+
+          gl_FragColor = finalOutput;
         }
       `,
       side: THREE.FrontSide,
-      transparent: true
+      transparent: true,
+      depthWrite: true
     });
   }
 
@@ -284,9 +390,27 @@
     regionMaterials.forEach((mat, region) => {
       const activation = currentActivations.get(region) ?? 0;
       const baseGray = REGION_BASE_GRAY[region] ?? 0.60;
-      const color = activationToColor(activation, baseGray);
+      const rimColor = MODE_RIM_COLORS[mode] ?? MODE_RIM_COLORS.attention;
+      const color = activationToColor(activation, baseGray, rimColor);
+      const opacity = activationToOpacity(activation);
       mat.uniforms.uBaseColor.value.set(color.r, color.g, color.b);
       mat.uniforms.uActivation.value = activation;
+      mat.uniforms.uOpacity.value = opacity;
+      mat.uniforms.uXrayLevel.value = xrayLevel;
+
+      // Highlight region if selected by recommendation
+      const isHighlighted = highlightRegion && region === highlightRegion ? 1.0 : 0.0;
+      mat.uniforms.uHighlighted.value = isHighlighted;
+
+      // Depth write: true for opaque regions to avoid transparency sorting artifacts
+      const shouldDepthWrite = opacity > 0.5 || xrayLevel < 0.05;
+      const shouldBeTransparent = xrayLevel > 0.05 || opacity < 1.0;
+      
+      if (mat.depthWrite !== shouldDepthWrite || mat.transparent !== shouldBeTransparent) {
+        mat.depthWrite = shouldDepthWrite;
+        mat.transparent = shouldBeTransparent;
+        mat.needsUpdate = true;
+      }
     });
   }
 
@@ -429,12 +553,14 @@
     camera.position.set(8, 5, 8);
     camera.lookAt(0, 0, 0);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
+    // Enable proper alpha blending for transparent brain regions
+    renderer.sortObjects = true;
     container.appendChild(renderer.domElement);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -604,6 +730,14 @@
       applyActivations(false);
     }
     if (controls) controls.autoRotate = autoRotate;
+  });
+
+  // React to highlightRegion and xrayLevel changes
+  $effect(() => {
+    if (regionMaterials.size > 0) {
+      // Update highlight and opacity states
+      updateMaterialColors();
+    }
   });
 
   onDestroy(() => {
