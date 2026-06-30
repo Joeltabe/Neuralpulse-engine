@@ -5,6 +5,8 @@
 
   let mode = $state<'attention' | 'dopamine' | 'memory'>('attention');
   let autoRotate = $state(true);
+  let xrayLevel = $state(0);
+  let highlightedRegion = $state('');
 
   let roiScores = $derived({
     frontal: mode === 'attention' ? 0.92 : mode === 'dopamine' ? 0.72 : 0.70,
@@ -77,7 +79,7 @@
     <div class="lg:col-span-8">
       <Card class="p-0 overflow-hidden relative">
         <div class="h-[550px] relative">
-          <BrainViewer roiScores={roiScores} mode={mode} autoRotate={autoRotate} />
+          <BrainViewer roiScores={roiScores} mode={mode} autoRotate={autoRotate} highlightRegion={highlightedRegion} xrayLevel={xrayLevel} />
           <!-- Mode indicator overlay -->
           <div class="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur-sm border border-white/10">
             <span class="w-2 h-2 rounded-full animate-pulse" style="background: {currentMode.color}"></span>
@@ -93,6 +95,7 @@
             </svg>
             <span class="{autoRotate ? 'text-emerald-400' : 'text-white/40'}">Rotate</span>
           </button>
+          <!-- Results mode toggle removed from here -->
           <!-- Model credit -->
           <div class="absolute bottom-4 left-4 text-[9px] text-white/20 max-w-[200px] leading-tight">
             Brain model by farhad.Guli · CC-BY-4.0
@@ -138,6 +141,29 @@
             </svg>
           </div>
           <p class="text-xs text-white/50 leading-relaxed">{currentMode.desc}</p>
+        </div>
+      </Card>
+
+      <!-- X-Ray Intensity Slider -->
+      <Card>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-semibold text-white/50 uppercase tracking-wider">X-Ray Intensity</h3>
+          <span class="text-xs font-bold text-neural-400 tabular-nums">{Math.round(xrayLevel * 100)}%</span>
+        </div>
+        <div class="group relative py-2">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            bind:value={xrayLevel}
+            class="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer outline-none slider-thumb-neural transition-all"
+            style="background: linear-gradient(to right, #4d6cf5 {xrayLevel * 100}%, rgba(255,255,255,0.1) {xrayLevel * 100}%);"
+          />
+        </div>
+        <div class="flex justify-between mt-1 text-[10px] text-white/30">
+          <span>Opaque</span>
+          <span>Transparent</span>
         </div>
       </Card>
 

@@ -12,6 +12,7 @@ export const MAX_BODY_SIZE = 1024 * 1024;
 export const ALLOWED_ANALYSIS_TYPES = ['video', 'audio', 'text', 'upload-text', 'ab-test'] as const;
 export const ALLOWED_AUTH_ACTIONS = ['login', 'register', 'demo-login', 'logout'] as const;
 export const ALLOWED_HISTORY_ACTIONS = ['analyses', 'stats'] as const;
+export const ALLOWED_CHANNEL_ACTIONS = ['analyze', 'link', 'profile'] as const;
 export const ALLOWED_BILLING_ACTIONS = ['packages', 'balance', 'purchase', 'history', 'mobile-payment'] as const;
 export const ALLOWED_THUMBNAIL_ACTIONS = ['generate', 'models', 'history'] as const;
 
